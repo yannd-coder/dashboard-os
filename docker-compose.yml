@@ -1,0 +1,37 @@
+services:
+  dashboard:
+    build: .
+    image: yannos-dashboard:latest
+    container_name: dashboard
+    restart: unless-stopped
+    networks:
+      - dashboard-net
+    # Port 3000 exposé sur l'host pour debug direct (http://2.24.8.83:3000)
+    # Le trafic public passera par Caddy en 80/443
+    ports:
+      - "127.0.0.1:3000:80"
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: dashboard-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - dashboard-net
+    depends_on:
+      - dashboard
+
+networks:
+  dashboard-net:
+    driver: bridge
+    name: dashboard-net
+
+volumes:
+  caddy-data:
+  caddy-config:

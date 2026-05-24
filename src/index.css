@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-feature-settings:
+      'cv02',
+      'cv03',
+      'cv04',
+      'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(168, 85, 247, 0.35);
+    color: #ffffff;
+  }
+
+  /* Scrollbar dark */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+@layer components {
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .hero-bg {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(168, 85, 247, 0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 90% 0%, rgba(236, 72, 153, 0.12) 0%, transparent 60%);
+  }
+
+  .card {
+    @apply rounded-2xl border border-border-subtle bg-bg-surface transition-colors duration-200;
+  }
+  .card-hover {
+    @apply hover:border-border-violet hover:bg-bg-surface2;
+  }
+}

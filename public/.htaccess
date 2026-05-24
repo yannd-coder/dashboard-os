@@ -1,0 +1,16 @@
+Options -MultiViews
+RewriteEngine On
+
+# SPA routing
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [QSA,L]
+
+# HTTPS forcé
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Cache statique 1 an
+<FilesMatch "\.(js|css|woff2|png|svg|ico|jpg|jpeg|webp)$">
+  Header set Cache-Control "max-age=31536000, public"
+</FilesMatch>

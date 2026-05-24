@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env
+.env.*
+.deploy
+.deploy.example
+.DS_Store
+public/.htaccess
+*.md
+README.md
+.vscode
+.idea

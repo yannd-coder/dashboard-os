@@ -1,0 +1,48 @@
+import type { ColiverProperty } from '@/types';
+
+export const coliverProperties: ColiverProperty[] = [
+  {
+    id: 'c1',
+    name: 'Coliver Saint-Pierre',
+    location: 'Saint-Pierre, La Réunion',
+    type: 'hybride',
+    beds: 8,
+    occupancy: 92,
+    monthlyRevenue: 6840,
+    status: 'live',
+    nextCheckIn: new Date(Date.now() + 1000 * 60 * 60 * 36),
+  },
+  {
+    id: 'c2',
+    name: 'Coliver Saint-Leu',
+    location: 'Saint-Leu, La Réunion',
+    type: 'coliving',
+    beds: 6,
+    occupancy: 85,
+    monthlyRevenue: 4280,
+    status: 'live',
+    nextCheckIn: new Date(Date.now() + 1000 * 60 * 60 * 8),
+  },
+  {
+    id: 'c3',
+    name: 'Coworking Cilaos',
+    location: 'Cilaos, La Réunion',
+    type: 'coworking',
+    beds: 0,
+    occupancy: 64,
+    monthlyRevenue: 1360,
+    status: 'live',
+    nextCheckIn: undefined,
+  },
+  {
+    id: 'c4',
+    name: 'Coliver Hermitage',
+    location: 'L\'Hermitage, La Réunion',
+    type: 'hybride',
+    beds: 10,
+    occupancy: 0,
+    monthlyRevenue: 0,
+    status: 'preparing',
+    nextCheckIn: undefined,
+  },
+];

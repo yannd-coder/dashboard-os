@@ -1,0 +1,21 @@
+# Caddy fait du Let's Encrypt automatique : il suffit que :
+# - le domaine pointe vers cette IP (✓ vérifié par dig)
+# - les ports 80 et 443 soient accessibles depuis Internet (UFW)
+dashboard.makeitapp.fr {
+    encode gzip zstd
+    reverse_proxy dashboard:80
+
+    # Logs JSON dans stdout (visible via `docker logs dashboard-caddy`)
+    log {
+        output stdout
+        format json
+    }
+
+    header {
+        # Sécurité basique
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
