@@ -6,6 +6,7 @@ import {
   Palmtree,
   Server,
   Settings,
+  ShieldCheck,
 } from 'lucide-react';
 import type { NavItem } from '@/types';
 
@@ -17,4 +18,5 @@ export const navItems: NavItem[] = [
   { label: 'Liens SEO', href: '/seo', icon: LinkIcon },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Admin', href: '/admin', icon: ShieldCheck, roles: ['superadmin'] },
 ];

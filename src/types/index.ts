@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { Role } from '@/types/auth';
 
 export type Status = 'live' | 'building' | 'idle' | 'error';
 
@@ -65,6 +66,7 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  roles?: Role[];
 }
 
 export interface ColiverProperty {

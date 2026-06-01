@@ -1,7 +1,9 @@
 import { Bell, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Header() {
+  const { user } = useAuth();
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
@@ -11,7 +13,7 @@ export function Header() {
       <div className="flex items-center gap-3">
         <div>
           <div className="text-sm font-medium text-text-primary">
-            {greeting}, Yann
+            {greeting}, {user?.prenom ?? ''}
           </div>
           <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-green animate-pulse-soft" />

@@ -1,14 +1,25 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { navItems } from '@/data/navigation';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   collapsed: boolean;
   onToggle: () => void;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: 'Superadmin',
+  admin: 'Admin',
+  user: 'Utilisateur',
+};
+
 export function Sidebar({ collapsed, onToggle }: Props) {
+  const { user, logout } = useAuth();
+  const visibleItems = navItems.filter(
+    (i) => !i.roles || (user && i.roles.includes(user.role)),
+  );
   return (
     <aside
       className={cn(
@@ -43,7 +54,7 @@ export function Sidebar({ collapsed, onToggle }: Props) {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         <ul className="space-y-1">
-          {navItems.map((item) => (
+          {visibleItems.map((item) => (
             <li key={item.href}>
               <NavLink
                 to={item.href}
@@ -76,13 +87,28 @@ export function Sidebar({ collapsed, onToggle }: Props) {
       <div className="border-t border-border-subtle p-3">
         <div className="flex items-center gap-3 rounded-lg p-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-violet-pink font-semibold text-white">
-            Y
+            {user?.prenom?.[0]?.toUpperCase() ?? '?'}
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-text-primary">Yann</div>
-              <div className="truncate text-xs text-text-tertiary">Founder · Coliver & SEO</div>
+              <div className="truncate text-sm font-medium text-text-primary">
+                {user?.prenom ?? '—'}
+              </div>
+              <div className="truncate text-xs text-text-tertiary">
+                {user ? ROLE_LABEL[user.role] : ''}
+              </div>
             </div>
+          )}
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-md p-1.5 text-text-tertiary hover:bg-bg-surface hover:text-text-primary"
+              aria-label="Se déconnecter"
+              title="Se déconnecter"
+            >
+              <LogOut size={15} />
+            </button>
           )}
         </div>
       </div>
