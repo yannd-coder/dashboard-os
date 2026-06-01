@@ -24,7 +24,26 @@ jobs:
           command_timeout: 20m
           script: |
             set -euo pipefail
-            cd "${{ secrets.VPS_APP_DIR }}"
+
+            APP_DIR="${{ secrets.VPS_APP_DIR }}"
+            if [ ! -d "$APP_DIR" ] || [ ! -f "$APP_DIR/docker-compose.yml" ]; then
+              echo "→ VPS_APP_DIR introuvable, auto-discovery"
+              CANDIDATE=$(docker inspect dashboard --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' 2>/dev/null || true)
+              if [ -n "$CANDIDATE" ] && [ -f "$CANDIDATE/docker-compose.yml" ]; then
+                APP_DIR="$CANDIDATE"
+              else
+                for d in /root/dashboard /root/dashboard-os /opt/dashboard /opt/dashboard-os /root/yannos-dashboard; do
+                  if [ -f "$d/docker-compose.yml" ]; then APP_DIR="$d"; break; fi
+                done
+              fi
+              if [ ! -f "$APP_DIR/docker-compose.yml" ]; then
+                echo "❌ Cannot locate dashboard repo. Candidates:"
+                find / -name docker-compose.yml -path '*dashboard*' 2>/dev/null || true
+                exit 1
+              fi
+            fi
+            echo "→ APP_DIR=$APP_DIR"
+            cd "$APP_DIR"
 
             echo "→ git pull origin main"
             git pull origin main
