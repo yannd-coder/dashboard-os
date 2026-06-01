@@ -5,6 +5,14 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Build args → Vite ENV (les VITE_* sont bakés dans le bundle JS)
+ARG VITE_APP_NAME
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_APP_NAME=$VITE_APP_NAME \
+    VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+    VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 # Copie d'abord les manifests pour profiter du cache Docker
 COPY package.json package-lock.json* ./
 RUN npm ci

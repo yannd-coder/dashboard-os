@@ -1,6 +1,11 @@
 services:
   dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
     image: yannos-dashboard:latest
     container_name: dashboard
     restart: unless-stopped
