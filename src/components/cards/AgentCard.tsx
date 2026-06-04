@@ -22,9 +22,24 @@ export function AgentCard({ agent }: { agent: Agent }) {
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-relaxed text-text-secondary line-clamp-2">
-        {agent.description}
-      </p>
+      {agent.description && (
+        <p className="mt-4 text-sm leading-relaxed text-text-secondary line-clamp-2">
+          {agent.description}
+        </p>
+      )}
+
+      {agent.channels.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {agent.channels.map((c) => (
+            <span
+              key={c}
+              className="rounded-md border border-border-subtle bg-bg-base/40 px-2 py-0.5 text-[11px] font-medium text-text-secondary"
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl border border-border-subtle bg-bg-base/40 p-3">
         <div>

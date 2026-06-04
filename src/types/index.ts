@@ -21,6 +21,7 @@ export interface Agent {
   status: Status;
   gradient: GradientName;
   icon: LucideIcon;
+  channels: string[];
   stats: {
     runs: number;
     success: number;

@@ -1,7 +1,0 @@
-# Renommer en .deploy et remplir avec les vraies valeurs (jamais commité, dans .gitignore)
-FTP_HOST=heaven.o2switch.net
-FTP_USER=deya7315
-FTP_PASS=
-FTP_PATH=dashboard.makeitapp.fr
-BUILD_CMD=npx vite build
-DIST_DIR=dist

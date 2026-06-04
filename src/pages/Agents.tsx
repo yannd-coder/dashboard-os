@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AgentCard } from '@/components/cards/AgentCard';
-import { agents } from '@/data/agents';
+import { useAgents } from '@/hooks/useAgents';
 import { cn } from '@/lib/utils';
 
 type Filter = 'all' | 'coliver' | 'seo' | 'global';
@@ -17,6 +17,7 @@ const filters: { id: Filter; label: string }[] = [
 
 export function Agents() {
   const [filter, setFilter] = useState<Filter>('all');
+  const { agents, loading, error } = useAgents();
   const filtered = filter === 'all' ? agents : agents.filter((a) => a.domain === filter);
 
   return (
@@ -55,11 +56,21 @@ export function Agents() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((a) => (
-          <AgentCard key={a.id} agent={a} />
-        ))}
-      </div>
+      {loading && (
+        <div className="card p-12 text-center text-text-tertiary">Chargement…</div>
+      )}
+      {error && (
+        <div className="card p-12 text-center text-accent-pink">
+          Erreur : {error.message}
+        </div>
+      )}
+      {!loading && !error && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((a) => (
+            <AgentCard key={a.id} agent={a} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

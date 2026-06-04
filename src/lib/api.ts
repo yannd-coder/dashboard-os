@@ -1,5 +1,87 @@
 import { supabase } from './supabase';
+import { resolveIcon } from './icons';
 import type { AdminUserRow, AppUser, Role } from '@/types/auth';
+import type { Agent, GradientName, Machine, Status } from '@/types';
+
+type DashboardAgentRow = {
+  id: string;
+  code: string;
+  name: string;
+  role: string;
+  description: string;
+  status: Status;
+  domain: 'coliver' | 'seo' | 'global';
+  channels: string[] | null;
+  gradient: GradientName;
+  icon: string;
+  runs: number;
+  success_rate: number;
+  avg_time: string;
+  last_run: string | null;
+};
+
+type DashboardMachineRow = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  category: string;
+  category_icon: string;
+  status: Status;
+  gradient: GradientName;
+  icon: string;
+  last_run: string | null;
+};
+
+export async function fetchAgents(): Promise<Agent[]> {
+  const { data, error } = await supabase
+    .from('dashboard_agents')
+    .select(
+      'id, code, name, role, description, status, domain, channels, gradient, icon, runs, success_rate, avg_time, last_run',
+    )
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row: DashboardAgentRow) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    role: row.role,
+    description: row.description,
+    status: row.status,
+    domain: row.domain,
+    channels: row.channels ?? [],
+    gradient: row.gradient,
+    icon: resolveIcon(row.icon),
+    stats: {
+      runs: row.runs,
+      success: row.success_rate,
+      avgTime: row.avg_time,
+    },
+    lastRun: row.last_run ? new Date(row.last_run) : undefined,
+  }));
+}
+
+export async function fetchMachines(): Promise<Machine[]> {
+  const { data, error } = await supabase
+    .from('dashboard_machines')
+    .select(
+      'id, code, name, description, category, category_icon, status, gradient, icon, last_run',
+    )
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row: DashboardMachineRow) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    categoryIcon: row.category_icon,
+    status: row.status,
+    gradient: row.gradient,
+    icon: resolveIcon(row.icon),
+    lastRun: row.last_run ? new Date(row.last_run) : undefined,
+  }));
+}
 
 export async function rpcLogin(prenom: string, pin: string): Promise<AppUser | null> {
   const { data, error } = await supabase.rpc('dashboard_login', {

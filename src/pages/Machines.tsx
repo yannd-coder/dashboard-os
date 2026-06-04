@@ -3,17 +3,18 @@ import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MachineCard } from '@/components/cards/MachineCard';
-import { machines } from '@/data/machines';
+import { useMachines } from '@/hooks/useMachines';
 import { cn } from '@/lib/utils';
 
 export function Machines() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('Tous');
+  const { machines, loading, error } = useMachines();
 
   const categories = useMemo(() => {
     const set = new Set(machines.map((m) => m.category));
     return ['Tous', ...Array.from(set)];
-  }, []);
+  }, [machines]);
 
   const filtered = useMemo(() => {
     return machines.filter((m) => {
@@ -23,10 +24,10 @@ export function Machines() {
       const matchCat = activeCategory === 'Tous' || m.category === activeCategory;
       return matchQuery && matchCat;
     });
-  }, [query, activeCategory]);
+  }, [machines, query, activeCategory]);
 
   const groupedByCategory = useMemo(() => {
-    const groups: Record<string, typeof machines> = {};
+    const groups: Record<string, typeof filtered> = {};
     filtered.forEach((m) => {
       if (!groups[m.category]) groups[m.category] = [];
       groups[m.category].push(m);
@@ -89,31 +90,41 @@ export function Machines() {
         </div>
       </div>
 
-      <div className="space-y-8">
-        {Object.entries(groupedByCategory).map(([cat, list]) => {
-          const sample = list[0];
-          return (
-            <section key={cat}>
-              <div className="mb-3 flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-text-secondary">
-                <span>{sample.categoryIcon}</span>
-                <span>{cat}</span>
-                <span className="text-text-tertiary">{list.length}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {list.map((m) => (
-                  <MachineCard key={m.id} machine={m} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+      {loading && (
+        <div className="card p-12 text-center text-text-tertiary">Chargement…</div>
+      )}
+      {error && (
+        <div className="card p-12 text-center text-accent-pink">
+          Erreur : {error.message}
+        </div>
+      )}
+      {!loading && !error && (
+        <div className="space-y-8">
+          {Object.entries(groupedByCategory).map(([cat, list]) => {
+            const sample = list[0];
+            return (
+              <section key={cat}>
+                <div className="mb-3 flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-text-secondary">
+                  <span>{sample.categoryIcon}</span>
+                  <span>{cat}</span>
+                  <span className="text-text-tertiary">{list.length}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {list.map((m) => (
+                    <MachineCard key={m.id} machine={m} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
 
-        {filtered.length === 0 && (
-          <div className="card p-12 text-center text-text-tertiary">
-            Aucune machine ne correspond à la recherche.
-          </div>
-        )}
-      </div>
+          {filtered.length === 0 && (
+            <div className="card p-12 text-center text-text-tertiary">
+              Aucune machine ne correspond à la recherche.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

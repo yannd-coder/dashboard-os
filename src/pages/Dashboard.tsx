@@ -7,11 +7,13 @@ import { AgentCard } from '@/components/cards/AgentCard';
 import { MachineCard } from '@/components/cards/MachineCard';
 import { ActivityFeed } from '@/components/feed/ActivityFeed';
 import { dashboardStats } from '@/data/stats';
-import { agents } from '@/data/agents';
-import { machines } from '@/data/machines';
 import { activityFeed } from '@/data/activity';
+import { useAgents } from '@/hooks/useAgents';
+import { useMachines } from '@/hooks/useMachines';
 
 export function Dashboard() {
+  const { agents } = useAgents();
+  const { machines } = useMachines();
   const topMachines = machines.filter((m) => m.status === 'live').slice(0, 6);
 
   return (
@@ -51,7 +53,7 @@ export function Dashboard() {
       <section>
         <PageHeader
           title="Agents"
-          subtitle="5 agents IA spécialisés pour Coliver et SEO"
+          subtitle={`${agents.length} agents IA spécialisés pour Coliver et SEO`}
           actions={
             <Link to="/agents">
               <Button variant="ghost" size="sm" icon={<ArrowUpRight size={14} />}>
@@ -76,7 +78,7 @@ export function Dashboard() {
             actions={
               <Link to="/machines">
                 <Button variant="ghost" size="sm" icon={<ArrowUpRight size={14} />}>
-                  Voir les 13
+                  Voir les {machines.length}
                 </Button>
               </Link>
             }
