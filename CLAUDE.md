@@ -2,22 +2,25 @@
 
 > Fichier local à lire **après** le CLAUDE.md global, **avant** le CLAUDE_CONTEXT.md.
 > Contient l'état réel du projet et la roadmap.
-> Dernière maj : 2026-06-02.
+> Dernière maj : 2026-06-04.
 
 ---
 
 ## 📊 État du projet
 
-**V0.2 déployée en prod** ✅ — auth Prénom+PIN branchée sur Supabase.
+**V0.3 déployée en prod** ✅ — agents + machines branchés sur Supabase (vraies données).
 
 | Ce qui marche | URL / accès |
 |---|---|
 | 🌐 Site live | https://dashboard.makeitapp.fr |
-| 🔐 Login → `/login` (auto-redir si pas connecté) | Prénom: `Yann` · PIN initial: `1234` |
-| 🛡️ Admin (gestion users) → `/admin` | visible uniquement si role=superadmin |
+| 🔐 Login Prénom+PIN | Yann · PIN initial `1234` (V0.2) |
+| 🛡️ Admin users → `/admin` | superadmin only (V0.2) |
+| 🤖 `/agents` lit `dashboard_agents` (5 agents avec canaux) | V0.3 |
+| ⚙️ `/machines` lit `dashboard_machines` (4 machines groupées) | V0.3 |
+| 📊 Dashboard hero lit count dynamique agents/machines | V0.3 |
 | 🚀 Pipeline auto | `git push origin main` → live en 30-45s |
 
-⚠️ **À tester par Yann en prod** : le login complet (saisie → change-pin → dashboard → admin → logout). Pas encore validé visuellement.
+⚠️ **Encore en mock** : `/coliver`, `/seo`, `/analytics`, ActivityFeed, dashboardStats — à brancher quand le besoin se présentera.
 
 ---
 
@@ -62,10 +65,11 @@
 
 ---
 
-## 🗄️ Supabase — table + RPC
+## 🗄️ Supabase — tables + RPC
 
 **Projet** : `kor-app` (`flqjaqocsugwbkbiuhhk`) — Europe West
 
+### Auth (V0.2)
 **Table** : `public.dashboard_users` (RLS on, aucune policy directe anon — tout passe par RPC)
 
 **7 RPC `SECURITY DEFINER`** (toutes grantées à `anon`) :
@@ -87,7 +91,16 @@ SET pin_hash = extensions.crypt('1234', extensions.gen_salt('bf')),
 WHERE prenom = 'Yann';
 ```
 
-**14 warnings advisors** Supabase = tous intentionnels (RLS no-policy + RPC anon executable = pattern Yann documenté).
+### Data (V0.3)
+**Tables** : `public.dashboard_agents` + `public.dashboard_machines`
+- RLS on, **anon SELECT only** (lecture pure depuis le front avec anon key)
+- Mutations actuellement via SQL direct ou Supabase Studio
+- Migration versionnée : `supabase/migrations/20260604_dashboard_agents_machines.sql`
+- Icônes stockées en string (`'Sparkles'`, `'Mail'`...) → résolues côté front via `lib/icons.ts`
+
+**Seeded** : 5 agents (ARIA, MAX, LÉON, REX, NOVA) + 4 machines (M01 Générateur Posts FB, M02 Réponse prospects, M03 Relance clients, M04 NDD Scanner SEO).
+
+**14+ warnings advisors** Supabase = tous intentionnels (RLS sans policy write + RPC anon executable + tables seed-only = pattern Yann documenté).
 
 ---
 
@@ -95,11 +108,14 @@ WHERE prenom = 'Yann';
 
 - ✅ **V0.1** — design first, 7 pages avec mock data (commit `647cc13`)
 - ✅ **V0.2** — auth Prénom+PIN via Supabase RPC (commit `5bf2fdc` + infra `5094dcc` + `b52468a`)
-- ⏳ **V0.3** — **PROCHAINE ÉTAPE** : remplacer mock data par vrais agents + machines
-  - Tables : `dashboard_agents`, `dashboard_machines`, `dashboard_coliver`, `dashboard_seo_backlinks`, `dashboard_activity`
-  - Branchement n8n / webhooks pour exécuter machines/agents
-  - Update pages `/agents`, `/machines`, `/coliver`, `/seo`, `/analytics`, `/dashboard` pour lire depuis Supabase
-- ⏳ **V0.4** — TBD (notifications, paramétrage par user, etc.)
+- ✅ **V0.3** — agents + machines lus depuis Supabase (commit `1e9fdfe`)
+- 🔧 **V0.4 — EN COURS** : première vraie machine pour ARIA
+  - **M01 — Générateur Posts Facebook Coworking** dans n8n
+  - Pipeline cible : trigger (cron ou webhook depuis le dashboard) → LLM (Claude/Gemini) génère post + image → publication FB (ou draft à approuver)
+  - Tables à ajouter : `dashboard_machine_runs` (logs d'exécution) + peut-être `dashboard_posts_drafts` (review queue)
+  - Update front : bouton "Lancer" sur MachineCard M01 + page detail machine avec historique runs
+- ⏳ **V0.5** — étendre aux 3 autres machines (M02 prospects, M03 relances, M04 NDD scanner) + activity feed live
+- ⏳ **V0.6** — coliver + SEO branchés sur Supabase
 
 ---
 
@@ -128,20 +144,26 @@ WHERE prenom = 'Yann';
 
 ## 🎯 Comment continuer la prochaine session
 
-**Première question à se poser** : "Le login en prod marche ?" → si pas encore testé, demander à Yann d'ouvrir https://dashboard.makeitapp.fr et de valider.
+**Focus V0.4** : construire la machine **M01 Générateur Posts Facebook Coworking** dans n8n, puis la brancher au dashboard.
 
-**Si OK** : attaquer **V0.3**. Plan suggéré :
-1. Créer migration Supabase : `dashboard_agents`, `dashboard_machines`, `dashboard_coliver`, `dashboard_seo_backlinks`, `dashboard_activity` (toutes préfixées `dashboard_`)
-2. Décider de l'API : RPC ou table directe ? (Pour des reads simples, table + RLS anon read; pour des writes / triggers, RPC SECURITY DEFINER)
-3. Côté front : remplacer les `data/agents.ts`, `data/machines.ts`, etc. par des hooks TanStack Query qui appellent Supabase
-4. Décider de la fréquence de polling / si on veut realtime (Supabase Realtime channels)
-5. Brancher n8n webhooks pour trigger les machines
+Questions à clarifier avec Yann avant de coder :
+1. **n8n** est-il déjà self-hosted (sur le VPS Hostinger ?) ou à installer ? Cloud ($20/mois) écarté par défaut.
+2. **Trigger** : bouton "Lancer" depuis dashboard (webhook n8n entrant) ou cron auto (ex: lundi 9h) ?
+3. **Workflow LLM** : Claude (Anthropic) ou Gemini ? Yann a déjà des clés via `MYINVOICE_ANTHROPIC_API_KEY` et `COLIVER_STAFF_GEMINI_API_KEY` (à dupliquer avec préfixe `DASHBOARD_`).
+4. **Image** : générée (Imagen / Replicate / DALL-E) ou banque d'images existante du coworking ?
+5. **Publication** : direct sur la page FB Coworking ou queue de drafts à approuver ?
+6. **Cible** : combien de coworkings ? (probablement Yann a une page FB pour son lieu — laquelle ?)
 
-**Si bug** : reset PIN Yann via le SQL ci-dessus, puis redéployer si besoin (commit + push).
+**Plan suggéré une fois validé** :
+1. Créer table `dashboard_machine_runs` (id, machine_code, status, input_jsonb, output_jsonb, started_at, ended_at, error)
+2. Installer n8n sur le VPS (docker compose à côté du dashboard) si pas déjà fait
+3. Construire le workflow n8n : webhook → Claude (prompt avec contexte coworking) → optionnel image → FB Graph API
+4. Côté front : bouton "Lancer" sur MachineCard M01 → POST webhook n8n + insert ligne dans `dashboard_machine_runs`
+5. Page detail `/machines/m01` avec historique runs
 
-**Tâches de fond** à proposer si Yann est dispo :
-- Nettoyer `.deploy` local + `README.md` (qui mentionnent encore FTP O2switch obsolète)
-- Code-split du bundle (857 KB → trop gros) : `manualChunks` pour séparer Supabase + Recharts
+**Tâches de fond** à proposer si Yann a 30 min :
+- Code-split du bundle (855 KB → trop gros) : `manualChunks` pour séparer Supabase + Recharts
+- Brancher l'ActivityFeed sur les runs de machines en temps réel (Supabase Realtime)
 - Tests E2E du flow login (Playwright ?)
 
 ---

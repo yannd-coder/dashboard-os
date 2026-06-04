@@ -82,6 +82,35 @@ export interface ColiverProperty {
   nextCheckIn?: Date;
 }
 
+export interface MachineRun {
+  id: string;
+  machineCode: string;
+  triggerSource: 'manual' | 'cron' | 'webhook';
+  status: 'running' | 'success' | 'error';
+  summary: string | null;
+  error: string | null;
+  triggeredBy: string | null;
+  startedAt: Date;
+  endedAt: Date | null;
+}
+
+export type DraftNetwork = 'facebook' | 'instagram';
+export type DraftStatus = 'pending' | 'approved' | 'rejected' | 'published';
+
+export interface PostDraft {
+  id: string;
+  machineRunId: string | null;
+  machineCode: string;
+  network: DraftNetwork;
+  accountHandle: string;
+  content: string;
+  status: DraftStatus;
+  decidedAt: Date | null;
+  decidedBy: string | null;
+  notes: string | null;
+  createdAt: Date;
+}
+
 export interface SeoLink {
   id: string;
   domain: string;

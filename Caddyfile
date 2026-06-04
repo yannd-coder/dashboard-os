@@ -1,21 +1,53 @@
 # Caddy fait du Let's Encrypt automatique : il suffit que :
 # - le domaine pointe vers cette IP (✓ vérifié par dig)
 # - les ports 80 et 443 soient accessibles depuis Internet (UFW)
+
 dashboard.makeitapp.fr {
     encode gzip zstd
     reverse_proxy dashboard:80
 
-    # Logs JSON dans stdout (visible via `docker logs dashboard-caddy`)
     log {
         output stdout
         format json
     }
 
     header {
-        # Sécurité basique
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
+
+# n8n exposé en HTTPS. Tous les webhooks/* requièrent le header X-Webhook-Secret.
+# L'UI n8n (autres paths) reste protégée par l'auth native de n8n (login user/pass).
+n8n.makeitapp.fr {
+    encode gzip zstd
+
+    # Webhooks : header secret obligatoire
+    @webhook path /webhook/* /webhook-test/*
+    handle @webhook {
+        @authed header X-Webhook-Secret {$N8N_WEBHOOK_SECRET}
+        handle @authed {
+            reverse_proxy host.docker.internal:5678
+        }
+        handle {
+            respond "Unauthorized" 401
+        }
+    }
+
+    # Reste de n8n (UI éditeur, API REST authentifiée) → proxy direct
+    handle {
+        reverse_proxy host.docker.internal:5678
+    }
+
+    log {
+        output stdout
+        format json
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
         -Server
     }
 }

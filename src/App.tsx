@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Dashboard } from '@/pages/Dashboard';
 import { Agents } from '@/pages/Agents';
 import { Machines } from '@/pages/Machines';
+import { MachineDetail } from '@/pages/MachineDetail';
 import { Coliver } from '@/pages/Coliver';
 import { LiensSEO } from '@/pages/LiensSEO';
 import { Analytics } from '@/pages/Analytics';
@@ -28,6 +29,7 @@ export default function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/agents" element={<Agents />} />
                   <Route path="/machines" element={<Machines />} />
+                  <Route path="/machines/:code" element={<MachineDetail />} />
                   <Route path="/coliver" element={<Coliver />} />
                   <Route path="/seo" element={<LiensSEO />} />
                   <Route path="/analytics" element={<Analytics />} />

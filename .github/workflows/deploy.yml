@@ -49,10 +49,13 @@ jobs:
             git pull origin main
 
             echo "→ écriture .env depuis les secrets GitHub"
-            cat > .env <<'ENVEOF'
+            cat > .env <<ENVEOF
             VITE_APP_NAME=${{ secrets.VITE_APP_NAME }}
             VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
             VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+            VITE_N8N_WEBHOOK_URL=${{ secrets.VITE_N8N_WEBHOOK_URL }}
+            VITE_N8N_WEBHOOK_SECRET=${{ secrets.N8N_WEBHOOK_SECRET }}
+            N8N_WEBHOOK_SECRET=${{ secrets.N8N_WEBHOOK_SECRET }}
             ENVEOF
             chmod 600 .env
 

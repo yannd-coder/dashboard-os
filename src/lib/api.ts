@@ -1,7 +1,16 @@
 import { supabase } from './supabase';
 import { resolveIcon } from './icons';
 import type { AdminUserRow, AppUser, Role } from '@/types/auth';
-import type { Agent, GradientName, Machine, Status } from '@/types';
+import type {
+  Agent,
+  DraftNetwork,
+  DraftStatus,
+  GradientName,
+  Machine,
+  MachineRun,
+  PostDraft,
+  Status,
+} from '@/types';
 
 type DashboardAgentRow = {
   id: string;
@@ -59,6 +68,102 @@ export async function fetchAgents(): Promise<Agent[]> {
     },
     lastRun: row.last_run ? new Date(row.last_run) : undefined,
   }));
+}
+
+type DashboardMachineRunRow = {
+  id: string;
+  machine_code: string;
+  trigger_source: MachineRun['triggerSource'];
+  status: MachineRun['status'];
+  summary: string | null;
+  error: string | null;
+  triggered_by: string | null;
+  started_at: string;
+  ended_at: string | null;
+};
+
+type DashboardDraftRow = {
+  id: string;
+  machine_run_id: string | null;
+  machine_code: string;
+  network: DraftNetwork;
+  account_handle: string;
+  content: string;
+  status: DraftStatus;
+  decided_at: string | null;
+  decided_by: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export async function fetchMachineRuns(machineCode: string, limit = 20): Promise<MachineRun[]> {
+  const { data, error } = await supabase
+    .from('dashboard_machine_runs')
+    .select(
+      'id, machine_code, trigger_source, status, summary, error, triggered_by, started_at, ended_at',
+    )
+    .eq('machine_code', machineCode)
+    .order('started_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row: DashboardMachineRunRow) => ({
+    id: row.id,
+    machineCode: row.machine_code,
+    triggerSource: row.trigger_source,
+    status: row.status,
+    summary: row.summary,
+    error: row.error,
+    triggeredBy: row.triggered_by,
+    startedAt: new Date(row.started_at),
+    endedAt: row.ended_at ? new Date(row.ended_at) : null,
+  }));
+}
+
+export async function fetchDrafts(
+  machineCode: string,
+  status?: DraftStatus,
+  limit = 30,
+): Promise<PostDraft[]> {
+  let query = supabase
+    .from('dashboard_posts_drafts')
+    .select(
+      'id, machine_run_id, machine_code, network, account_handle, content, status, decided_at, decided_by, notes, created_at',
+    )
+    .eq('machine_code', machineCode)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((row: DashboardDraftRow) => ({
+    id: row.id,
+    machineRunId: row.machine_run_id,
+    machineCode: row.machine_code,
+    network: row.network,
+    accountHandle: row.account_handle,
+    content: row.content,
+    status: row.status,
+    decidedAt: row.decided_at ? new Date(row.decided_at) : null,
+    decidedBy: row.decided_by,
+    notes: row.notes,
+    createdAt: new Date(row.created_at),
+  }));
+}
+
+export async function rpcDecideDraft(
+  draftId: string,
+  decision: 'approved' | 'rejected',
+  userId: string,
+  notes?: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_decide_draft', {
+    p_draft_id: draftId,
+    p_decision: decision,
+    p_user_id: userId,
+    p_notes: notes ?? null,
+  });
+  if (error) throw error;
+  return Boolean(data);
 }
 
 export async function fetchMachines(): Promise<Machine[]> {
