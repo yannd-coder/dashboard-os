@@ -12,7 +12,9 @@ export function formatNumber(n: number): string {
 }
 
 export function formatRelativeTime(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  // max(0, …) : l'horloge Supabase peut être légèrement en avance sur le client
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 5) return "à l'instant";
   if (seconds < 60) return `il y a ${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `il y a ${minutes} min`;
