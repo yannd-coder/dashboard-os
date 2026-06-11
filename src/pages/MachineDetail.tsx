@@ -68,11 +68,14 @@ export function MachineDetail() {
         kind: 'success',
         message: 'Run lancé — les drafts apparaîtront dans quelques secondes.',
       });
-      setTimeout(() => {
-        void refetchRuns();
-        void refetchPending();
-        void refetchDecided();
-      }, 4000);
+      // Le workflow n8n met ~10-15s (2 appels Claude) → refetch échelonnés
+      for (const ms of [4000, 9000, 15000, 22000]) {
+        setTimeout(() => {
+          void refetchRuns();
+          void refetchPending();
+          void refetchDecided();
+        }, ms);
+      }
     } catch (e) {
       setFeedback({
         kind: 'error',
