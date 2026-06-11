@@ -27,9 +27,25 @@ n8n.makeitapp.fr {
     # Webhooks : header secret obligatoire
     @webhook path /webhook/* /webhook-test/*
     handle @webhook {
+        # Preflight CORS : le navigateur envoie OPTIONS sans header custom,
+        # on répond directement ici (sans exiger le secret)
+        @preflight method OPTIONS
+        handle @preflight {
+            header {
+                Access-Control-Allow-Origin "https://dashboard.makeitapp.fr"
+                Access-Control-Allow-Methods "POST, OPTIONS"
+                Access-Control-Allow-Headers "Content-Type, X-Webhook-Secret"
+                Access-Control-Max-Age "3600"
+            }
+            respond "" 204
+        }
+
         @authed header X-Webhook-Secret {$N8N_WEBHOOK_SECRET}
         handle @authed {
-            reverse_proxy host.docker.internal:5678
+            header Access-Control-Allow-Origin "https://dashboard.makeitapp.fr"
+            reverse_proxy host.docker.internal:5678 {
+                header_down -Access-Control-Allow-Origin
+            }
         }
         handle {
             respond "Unauthorized" 401

@@ -119,6 +119,40 @@ WHERE prenom = 'Yann';
 
 ---
 
+## 🔒 Dettes de sécurité à régler
+
+### 1. Rotater `N8N_WEBHOOK_SECRET`
+Le secret actuel a été partagé en clair dans une conversation Claude. À régénérer dès que possible :
+```bash
+# Sur le mac
+NEW=$(openssl rand -hex 32) && echo "$NEW"
+
+# 1. Update les 2 secrets GH (N8N_WEBHOOK_SECRET côté Actions)
+# 2. SSH VPS : update /root/dashboard-os/.env (les 2 lignes VITE_N8N_WEBHOOK_SECRET et N8N_WEBHOOK_SECRET)
+# 3. cd /root/dashboard-os && docker compose up -d --build
+```
+
+### 2. Whitelist UFW des IPs GitHub Actions
+Les runners GH ont un pool d'IPs énorme qui change. Le whitelist actuel ne couvre qu'une partie → chaque deploy via push échoue souvent. Solution durable :
+```bash
+# Sur le VPS — script à exécuter manuellement (ou cron 1x/semaine)
+curl -s https://api.github.com/meta | jq -r '.actions[]' | while read cidr; do
+  ufw allow from "$cidr" to any port 22 proto tcp comment 'GH Actions'
+done
+ufw reload
+```
+~3000 règles UFW mais elles sont stables.
+
+**Alternative plus propre (à terme)** : passer par Tailscale (runner GH installe Tailscale → rejoint le tailnet du VPS → SSH via 100.x.y.z). Pas de whitelist IP nécessaire, plus sécurisé. Effort ~30 min.
+
+**Workaround actuel** : déploiement manuel par SSH depuis le mac (clé `~/.ssh/hostinger_vps`) :
+```bash
+ssh -i ~/.ssh/hostinger_vps root@2.24.8.83 \
+  "cd /root/dashboard-os && git pull origin main && docker compose up -d --build"
+```
+
+---
+
 ## ⚠️ Pièges connus (à pas répéter)
 
 1. **Ne JAMAIS uploader en FTP O2switch pour ce projet** — le sous-domaine pointe vers le VPS, pas vers `/home/deya7315/dashboard.makeitapp.fr/`. Le dossier orphelin a été nettoyé.
