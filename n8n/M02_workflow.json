@@ -1,0 +1,554 @@
+{
+  "name": "M02 — Réponse Prospects ARIA",
+  "nodes": [
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "m02-trigger",
+        "options": {}
+      }
+    },
+    {
+      "name": "Email IMAP",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "disabled": true,
+      "parameters": {
+        "mailbox": "INBOX",
+        "format": "simple",
+        "options": {}
+      }
+    },
+    {
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Normalize Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "machine_code",
+              "value": "M02",
+              "type": "string"
+            },
+            {
+              "name": "trigger_source",
+              "value": "={{ $json.body ? 'manual' : 'webhook' }}",
+              "type": "string"
+            },
+            {
+              "name": "email_from",
+              "value": "={{ $json.body?.email_from || $json.from || '' }}",
+              "type": "string"
+            },
+            {
+              "name": "subject",
+              "value": "={{ $json.body?.subject || $json.subject || '' }}",
+              "type": "string"
+            },
+            {
+              "name": "body_text",
+              "value": "={{ $json.body?.body || $json.textPlain || $json.textHtml || '' }}",
+              "type": "string"
+            },
+            {
+              "name": "message_id",
+              "value": "={{ $json.body?.message_id || ($json.metadata ? $json.metadata['message-id'] : '') || '' }}",
+              "type": "string"
+            },
+            {
+              "name": "received_at",
+              "value": "={{ $json.body?.received_at || $json.date || new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Create Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_create_machine_run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_machine_code: $json.machine_code, p_trigger_source: $json.trigger_source, p_user_id: null }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Claude Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "ANTHROPIC_API_KEY_DANS_N8N"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"claude-opus-4-7\",\n  max_tokens: 500,\n  system: \"Tu analyses les emails reçus par Coliver Tropical (coworking + coliving à Saint-Pierre, La Réunion). Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte autour. Schéma : {\\\"is_prospect\\\": boolean, \\\"source\\\": \\\"email\\\"|\\\"lodgify\\\"|\\\"form\\\"|\\\"other\\\", \\\"summary\\\": string (1 phrase : qui demande quoi, dates, nb personnes), \\\"checkin\\\": \\\"YYYY-MM-DD\\\" ou null, \\\"checkout\\\": \\\"YYYY-MM-DD\\\" ou null, \\\"persons\\\": number ou null}. is_prospect=true si demande d'info ou de réservation coworking/coliving (y compris notifications Lodgify et formulaires du site). false pour spam, newsletters, factures, notifications techniques, emails vides.\",\n  messages: [{ role: \"user\", content: \"Email reçu :\\nDe : \" + $('Normalize Email').item.json.email_from + \"\\nSujet : \" + $('Normalize Email').item.json.subject + \"\\nCorps :\\n\" + $('Normalize Email').item.json.body_text }]\n}) }}",
+        "options": {}
+      }
+    },
+    {
+      "name": "Is Prospect?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "is-prospect-check",
+              "leftValue": "={{ JSON.parse($('Claude Classify').item.json.content[0].text.replace(/```json|```/g, '').trim()).is_prospect }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Lodgify Dispos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1320,
+        0
+      ],
+      "disabled": true,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.lodgify.com/v2/properties",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-ApiKey",
+              "value": "LODGIFY_API_KEY_A_REMPLACER"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Claude Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "ANTHROPIC_API_KEY_DANS_N8N"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"claude-opus-4-7\",\n  max_tokens: 700,\n  system: \"Tu es ARIA, assistante de Coliver Tropical (coworking + coliving à Saint-Pierre, La Réunion — fibre, bureaux intérieurs/extérieurs, communauté de freelances, face à la nature). Tu rédiges des réponses aux emails de prospects. Ton : chaleureux, convivial et pro — comme un humain sympa, pas un robot. Règles : adapte tutoiement/vouvoiement au mail reçu ; réponds précisément aux questions posées ; ne JAMAIS inventer de prix ni de disponibilités — dis qu'on confirme la dispo très rapidement ; propose la résa en ligne : https://coliver-coworking-book.makeitapp.fr ; max 150 mots ; pas d'objet, uniquement le corps de l'email ; signe \\\"L'équipe Coliver Tropical\\\".\",\n  messages: [{ role: \"user\", content: \"Email du prospect :\\nDe : \" + $('Normalize Email').item.json.email_from + \"\\nSujet : \" + $('Normalize Email').item.json.subject + \"\\n\\n\" + $('Normalize Email').item.json.body_text + \"\\n\\nRésumé de la demande : \" + JSON.parse($('Claude Classify').item.json.content[0].text.replace(/```json|```/g, '').trim()).summary }]\n}) }}",
+        "options": {}
+      }
+    },
+    {
+      "name": "Insert Prospect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_add_prospect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  p_run_id: $('Create Run').item.json.data,\n  p_source: JSON.parse($('Claude Classify').item.json.content[0].text.replace(/```json|```/g, '').trim()).source,\n  p_email_from: $('Normalize Email').item.json.email_from,\n  p_subject: $('Normalize Email').item.json.subject,\n  p_body: $('Normalize Email').item.json.body_text,\n  p_received_at: $('Normalize Email').item.json.received_at || null,\n  p_summary: JSON.parse($('Claude Classify').item.json.content[0].text.replace(/```json|```/g, '').trim()).summary,\n  p_message_id: $('Normalize Email').item.json.message_id || null\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Insert Response Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_add_response_draft",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  p_prospect_id: $('Insert Prospect').item.json.data,\n  p_content: $('Claude Reply').item.json.content[0].text\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Complete Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_complete_machine_run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_run_id: $('Create Run').item.json.data, p_status: \"success\", p_summary: \"1 prospect traité — réponse en attente d'approbation\" }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Complete Run (ignore)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1320,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_complete_machine_run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_run_id: $('Create Run').item.json.data, p_status: \"success\", p_summary: \"Email ignoré (non-prospect) : \" + JSON.parse($('Claude Classify').item.json.content[0].text.replace(/```json|```/g, '').trim()).summary }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email IMAP": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Normalize Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Email": {
+      "main": [
+        [
+          {
+            "node": "Create Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Run": {
+      "main": [
+        [
+          {
+            "node": "Claude Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Classify": {
+      "main": [
+        [
+          {
+            "node": "Is Prospect?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Prospect?": {
+      "main": [
+        [
+          {
+            "node": "Lodgify Dispos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Complete Run (ignore)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lodgify Dispos": {
+      "main": [
+        [
+          {
+            "node": "Claude Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Reply": {
+      "main": [
+        [
+          {
+            "node": "Insert Prospect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Prospect": {
+      "main": [
+        [
+          {
+            "node": "Insert Response Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Response Draft": {
+      "main": [
+        [
+          {
+            "node": "Complete Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -9,6 +9,11 @@ import type {
   Machine,
   MachineRun,
   PostDraft,
+  Prospect,
+  ProspectSource,
+  ProspectStatus,
+  ResponseDraft,
+  ResponseDraftStatus,
   Status,
 } from '@/types';
 
@@ -157,6 +162,84 @@ export async function rpcDecideDraft(
   notes?: string,
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('dashboard_decide_draft', {
+    p_draft_id: draftId,
+    p_decision: decision,
+    p_user_id: userId,
+    p_notes: notes ?? null,
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+type DashboardProspectRow = {
+  id: string;
+  source: ProspectSource;
+  email_from: string | null;
+  subject: string | null;
+  body: string;
+  request_summary: string | null;
+  status: ProspectStatus;
+  received_at: string | null;
+  created_at: string;
+};
+
+type DashboardResponseDraftRow = {
+  id: string;
+  content: string;
+  status: ResponseDraftStatus;
+  decided_at: string | null;
+  notes: string | null;
+  created_at: string;
+  prospect: DashboardProspectRow | null;
+};
+
+function mapProspect(row: DashboardProspectRow): Prospect {
+  return {
+    id: row.id,
+    source: row.source,
+    emailFrom: row.email_from,
+    subject: row.subject,
+    body: row.body,
+    requestSummary: row.request_summary,
+    status: row.status,
+    receivedAt: row.received_at ? new Date(row.received_at) : null,
+    createdAt: new Date(row.created_at),
+  };
+}
+
+export async function fetchResponseDrafts(
+  status?: ResponseDraftStatus,
+  limit = 30,
+): Promise<ResponseDraft[]> {
+  let query = supabase
+    .from('dashboard_response_drafts')
+    .select(
+      'id, content, status, decided_at, notes, created_at, prospect:dashboard_prospects(id, source, email_from, subject, body, request_summary, status, received_at, created_at)',
+    )
+    .eq('machine_code', 'M02')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return ((data ?? []) as unknown as DashboardResponseDraftRow[]).map((row) => ({
+    id: row.id,
+    content: row.content,
+    status: row.status,
+    decidedAt: row.decided_at ? new Date(row.decided_at) : null,
+    notes: row.notes,
+    createdAt: new Date(row.created_at),
+    prospect: row.prospect ? mapProspect(row.prospect) : null,
+  }));
+}
+
+export async function rpcDecideResponseDraft(
+  draftId: string,
+  decision: 'approved' | 'rejected',
+  userId: string,
+  notes?: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_decide_response_draft', {
     p_draft_id: draftId,
     p_decision: decision,
     p_user_id: userId,

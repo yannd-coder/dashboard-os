@@ -1,49 +1,46 @@
-import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
   Check,
-  Facebook,
-  Instagram,
+  FileText,
+  Globe,
   Loader2,
+  Mail,
+  MessageCircle,
+  Phone,
   Play,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { RunsHistory } from '@/components/machines/RunsHistory';
-import { MachineDetailM02 } from '@/pages/MachineDetailM02';
-import { useMachines } from '@/hooks/useMachines';
 import { useMachineRuns } from '@/hooks/useMachineRuns';
-import { useDrafts } from '@/hooks/useDrafts';
+import { useResponseDrafts } from '@/hooks/useResponseDrafts';
 import { useAuth } from '@/hooks/useAuth';
 import { isN8nConfigured, triggerMachine } from '@/lib/n8n';
-import { rpcDecideDraft } from '@/lib/api';
+import { rpcDecideResponseDraft } from '@/lib/api';
 import { cn, formatRelativeTime } from '@/lib/utils';
-import type { DraftNetwork, PostDraft } from '@/types';
+import type { Machine, ProspectSource, ResponseDraft } from '@/types';
 
-const networkConfig: Record<DraftNetwork, { label: string; icon: typeof Facebook; color: string }> = {
-  facebook: { label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]' },
-  instagram: { label: 'Instagram', icon: Instagram, color: 'text-[#E1306C]' },
+const sourceConfig: Record<ProspectSource, { label: string; icon: typeof Mail }> = {
+  email: { label: 'Email', icon: Mail },
+  lodgify: { label: 'Lodgify', icon: Globe },
+  form: { label: 'Formulaire site', icon: FileText },
+  whatsapp: { label: 'WhatsApp', icon: MessageCircle },
+  phone: { label: 'Téléphone', icon: Phone },
+  other: { label: 'Autre', icon: Mail },
 };
 
-export function MachineDetail() {
-  const { code } = useParams<{ code: string }>();
-  const machineCode = (code ?? '').toUpperCase();
+export function MachineDetailM02({ machine }: { machine: Machine }) {
   const { user } = useAuth();
-  const { machines, loading: loadingMachine } = useMachines();
-  const machine = useMemo(
-    () => machines.find((m) => m.code.toUpperCase() === machineCode),
-    [machines, machineCode],
-  );
-
-  const { runs, loading: loadingRuns, refetch: refetchRuns } = useMachineRuns(machineCode);
+  const { runs, loading: loadingRuns, refetch: refetchRuns } = useMachineRuns(machine.code);
   const {
     drafts: pendingDrafts,
     loading: loadingPending,
     refetch: refetchPending,
-  } = useDrafts(machineCode, 'pending');
-  const { drafts: decidedDrafts, refetch: refetchDecided } = useDrafts(machineCode, undefined, 20);
+  } = useResponseDrafts('pending');
+  const { drafts: allDrafts, refetch: refetchAll } = useResponseDrafts(undefined, 20);
 
   const [triggering, setTriggering] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(
@@ -57,17 +54,16 @@ export function MachineDetail() {
     setTriggering(true);
     setFeedback(null);
     try {
-      await triggerMachine({ machineCode, triggeredBy: user?.id });
+      await triggerMachine({ machineCode: machine.code, triggeredBy: user?.id });
       setFeedback({
         kind: 'success',
-        message: 'Run lancé — les drafts apparaîtront dans quelques secondes.',
+        message: 'Relève des emails lancée — les réponses proposées apparaîtront sous peu.',
       });
-      // Le workflow n8n met ~10-15s (2 appels Claude) → refetch échelonnés
       for (const ms of [4000, 9000, 15000, 22000]) {
         setTimeout(() => {
           void refetchRuns();
           void refetchPending();
-          void refetchDecided();
+          void refetchAll();
         }, ms);
       }
     } catch (e) {
@@ -84,8 +80,8 @@ export function MachineDetail() {
     if (!user) return;
     setDeciding(draftId);
     try {
-      await rpcDecideDraft(draftId, decision, user.id);
-      await Promise.all([refetchPending(), refetchDecided()]);
+      await rpcDecideResponseDraft(draftId, decision, user.id);
+      await Promise.all([refetchPending(), refetchAll()]);
     } catch (e) {
       setFeedback({
         kind: 'error',
@@ -96,25 +92,7 @@ export function MachineDetail() {
     }
   }
 
-  if (loadingMachine) {
-    return <div className="card p-12 text-center text-text-tertiary">Chargement…</div>;
-  }
-  if (!machine) {
-    return (
-      <div className="card p-12 text-center">
-        <p className="text-text-secondary">Machine <code>{machineCode}</code> introuvable.</p>
-        <Link to="/machines" className="mt-4 inline-block text-accent-violet hover:underline">
-          ← Retour aux machines
-        </Link>
-      </div>
-    );
-  }
-
-  if (machine.code.toUpperCase() === 'M02') {
-    return <MachineDetailM02 machine={machine} />;
-  }
-
-  const recentDecidedDrafts = decidedDrafts.filter((d) => d.status !== 'pending').slice(0, 10);
+  const recentDecided = allDrafts.filter((d) => d.status !== 'pending').slice(0, 10);
 
   return (
     <div className="space-y-8">
@@ -128,7 +106,7 @@ export function MachineDetail() {
 
       <PageHeader
         title={`${machine.code} · ${machine.name}`}
-        subtitle={machine.description || `${machine.category}`}
+        subtitle={machine.description || machine.category}
         actions={
           <Button
             variant="primary"
@@ -136,7 +114,7 @@ export function MachineDetail() {
             disabled={!canTrigger}
             onClick={handleTrigger}
           >
-            {triggering ? 'Lancement…' : 'Lancer maintenant'}
+            {triggering ? 'Relève en cours…' : 'Relever les emails'}
           </Button>
         }
       />
@@ -144,7 +122,7 @@ export function MachineDetail() {
       {!isN8nConfigured() && (
         <div className="card border-accent-orange/40 bg-accent-orange/5 p-4 text-sm text-accent-orange">
           Webhook n8n non configuré. Définis <code>VITE_N8N_WEBHOOK_URL</code> et{' '}
-          <code>VITE_N8N_WEBHOOK_SECRET</code> dans les secrets GitHub Actions.
+          <code>VITE_N8N_WEBHOOK_SECRET</code>.
         </div>
       )}
 
@@ -161,24 +139,24 @@ export function MachineDetail() {
         </div>
       )}
 
-      {/* Drafts en attente */}
       <section>
         <PageHeader
-          title="Drafts en attente"
+          title="Réponses en attente"
           subtitle={
             loadingPending
               ? 'Chargement…'
-              : `${pendingDrafts.length} draft${pendingDrafts.length > 1 ? 's' : ''} à approuver`
+              : `${pendingDrafts.length} réponse${pendingDrafts.length > 1 ? 's' : ''} à valider`
           }
         />
         {pendingDrafts.length === 0 && !loadingPending && (
           <div className="card p-8 text-center text-text-tertiary">
-            Aucun draft en attente. Lance la machine pour générer 2 nouveaux posts (FB + IG).
+            Aucune réponse en attente. Lance une relève des emails pour traiter les nouveaux
+            prospects.
           </div>
         )}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
           {pendingDrafts.map((d) => (
-            <DraftCard
+            <ResponseDraftCard
               key={d.id}
               draft={d}
               loading={deciding === d.id}
@@ -191,16 +169,12 @@ export function MachineDetail() {
 
       <RunsHistory runs={runs} loading={loadingRuns} />
 
-      {/* Drafts décidés (récents) */}
-      {recentDecidedDrafts.length > 0 && (
+      {recentDecided.length > 0 && (
         <section>
-          <PageHeader
-            title="Drafts décidés"
-            subtitle={`${recentDecidedDrafts.length} récents`}
-          />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {recentDecidedDrafts.map((d) => (
-              <DraftCard key={d.id} draft={d} readonly />
+          <PageHeader title="Réponses décidées" subtitle={`${recentDecided.length} récentes`} />
+          <div className="space-y-4">
+            {recentDecided.map((d) => (
+              <ResponseDraftCard key={d.id} draft={d} readonly />
             ))}
           </div>
         </section>
@@ -209,43 +183,65 @@ export function MachineDetail() {
   );
 }
 
-function DraftCard({
+function ResponseDraftCard({
   draft,
   onApprove,
   onReject,
   loading,
   readonly,
 }: {
-  draft: PostDraft;
+  draft: ResponseDraft;
   onApprove?: () => void;
   onReject?: () => void;
   loading?: boolean;
   readonly?: boolean;
 }) {
-  const cfg = networkConfig[draft.network];
-  const Icon = cfg.icon;
+  const prospect = draft.prospect;
+  const src = sourceConfig[prospect?.source ?? 'other'];
+  const SrcIcon = src.icon;
 
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border-subtle bg-bg-base/40 p-4">
-        <div className="flex items-center gap-2">
-          <Icon size={18} className={cfg.color} />
-          <span className="text-sm font-semibold text-text-primary">{cfg.label}</span>
-          <span className="text-xs text-text-tertiary">{draft.accountHandle}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <SrcIcon size={16} className="text-accent-cyan shrink-0" />
+          <span className="text-sm font-semibold text-text-primary">{src.label}</span>
+          {prospect?.emailFrom && (
+            <span className="truncate text-xs text-text-tertiary">{prospect.emailFrom}</span>
+          )}
         </div>
-        <DraftStatusBadge status={draft.status} />
+        <ResponseStatusBadge status={draft.status} />
       </div>
+
+      {prospect && (
+        <div className="border-b border-border-subtle p-4">
+          <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+            Message du prospect{prospect.subject ? ` — ${prospect.subject}` : ''}
+          </div>
+          <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-secondary line-clamp-6">
+            {prospect.body}
+          </pre>
+          {prospect.requestSummary && (
+            <div className="mt-2 rounded-md bg-accent-violet/10 px-3 py-2 text-xs text-accent-violet">
+              {prospect.requestSummary}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="p-4">
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-secondary">
+        <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+          Réponse proposée
+        </div>
+        <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-primary">
           {draft.content}
         </pre>
         <div className="mt-3 text-xs text-text-tertiary">
-          Généré {formatRelativeTime(draft.createdAt)}
-          {draft.decidedAt && (
-            <> · décidé {formatRelativeTime(draft.decidedAt)}</>
-          )}
+          Générée {formatRelativeTime(draft.createdAt)}
+          {draft.decidedAt && <> · décidée {formatRelativeTime(draft.decidedAt)}</>}
         </div>
       </div>
+
       {!readonly && draft.status === 'pending' && (
         <div className="flex border-t border-border-subtle">
           <button
@@ -272,18 +268,18 @@ function DraftCard({
   );
 }
 
-const draftStatusConfig: Record<
-  PostDraft['status'],
+const responseStatusConfig: Record<
+  ResponseDraft['status'],
   { label: string; text: string; bg: string }
 > = {
   pending: { label: 'En attente', text: 'text-accent-orange', bg: 'bg-accent-orange/10' },
-  approved: { label: 'Approuvé', text: 'text-accent-green', bg: 'bg-accent-green/10' },
-  rejected: { label: 'Rejeté', text: 'text-accent-red', bg: 'bg-accent-red/10' },
-  published: { label: 'Publié', text: 'text-accent-violet', bg: 'bg-accent-violet/10' },
+  approved: { label: 'Approuvée', text: 'text-accent-green', bg: 'bg-accent-green/10' },
+  rejected: { label: 'Rejetée', text: 'text-accent-red', bg: 'bg-accent-red/10' },
+  sent: { label: 'Envoyée', text: 'text-accent-violet', bg: 'bg-accent-violet/10' },
 };
 
-function DraftStatusBadge({ status }: { status: PostDraft['status'] }) {
-  const c = draftStatusConfig[status];
+function ResponseStatusBadge({ status }: { status: ResponseDraft['status'] }) {
+  const c = responseStatusConfig[status];
   return (
     <span
       className={cn(

@@ -2,13 +2,13 @@
 
 > Fichier local à lire **après** le CLAUDE.md global, **avant** le CLAUDE_CONTEXT.md.
 > Contient l'état réel du projet et la roadmap.
-> Dernière maj : 2026-06-04.
+> Dernière maj : 2026-06-12.
 
 ---
 
 ## 📊 État du projet
 
-**V0.3 déployée en prod** ✅ — agents + machines branchés sur Supabase (vraies données).
+**V0.4 livrée + V0.5 (M02) construite, en attente credentials** — M01 opérationnelle en prod, M02 e2e validée via webhook.
 
 | Ce qui marche | URL / accès |
 |---|---|
@@ -18,7 +18,9 @@
 | 🤖 `/agents` lit `dashboard_agents` (5 agents avec canaux) | V0.3 |
 | ⚙️ `/machines` lit `dashboard_machines` (4 machines groupées) | V0.3 |
 | 📊 Dashboard hero lit count dynamique agents/machines | V0.3 |
-| 🚀 Pipeline auto | `git push origin main` → live en 30-45s |
+| 🤖 M01 Posts FB/IG : cron lun+jeu 9h Réunion + bouton dashboard → drafts à approuver `/machines/M01` | V0.4 |
+| 📬 M02 Réponse prospects : webhook OK, page `/machines/M02` — IMAP + Lodgify à brancher (voir `n8n/M02_setup.md`) | V0.5 |
+| 🚀 Pipeline auto | `git push origin main` → live en 30-45s (**refonctionne** depuis le 2026-06-11) |
 
 ⚠️ **Encore en mock** : `/coliver`, `/seo`, `/analytics`, ActivityFeed, dashboardStats — à brancher quand le besoin se présentera.
 
@@ -109,47 +111,40 @@ WHERE prenom = 'Yann';
 - ✅ **V0.1** — design first, 7 pages avec mock data (commit `647cc13`)
 - ✅ **V0.2** — auth Prénom+PIN via Supabase RPC (commit `5bf2fdc` + infra `5094dcc` + `b52468a`)
 - ✅ **V0.3** — agents + machines lus depuis Supabase (commit `1e9fdfe`)
-- 🔧 **V0.4 — EN COURS** : première vraie machine pour ARIA
-  - **M01 — Générateur Posts Facebook Coworking** dans n8n
-  - Pipeline cible : trigger (cron ou webhook depuis le dashboard) → LLM (Claude/Gemini) génère post + image → publication FB (ou draft à approuver)
-  - Tables à ajouter : `dashboard_machine_runs` (logs d'exécution) + peut-être `dashboard_posts_drafts` (review queue)
-  - Update front : bouton "Lancer" sur MachineCard M01 + page detail machine avec historique runs
-- ⏳ **V0.5** — étendre aux 3 autres machines (M02 prospects, M03 relances, M04 NDD scanner) + activity feed live
-- ⏳ **V0.6** — coliver + SEO branchés sur Supabase
+- ✅ **V0.4** — M01 Posts Coworking dans n8n (workflow `3lG5bUiIwcD22dVl`, publié) : webhook + cron lun/jeu 5h UTC → Claude FB + IG → drafts pending → approve/reject dashboard. E2E validé le 2026-06-11. Fix CORS preflight Caddy + refetch échelonnés.
+- 🔧 **V0.5 — EN COURS** : M02 Réponse prospects (workflow `LrozR6S6eT729sil`, créé **par API n8n**, actif)
+  - Fait : tables `dashboard_prospects` + `dashboard_response_drafts` + 3 RPC, page `/machines/M02`, pipeline classify→reply Claude, e2e webhook validé, dédup `message_id`
+  - ⏳ Bloqué sur Yann : boîte `contact@coliver.re` (credential IMAP) + clé API Lodgify (dispos/tarifs réels) — procédure dans `n8n/M02_setup.md`
+  - M03 relances + M04 NDD scanner : **en pause** (décision Yann 2026-06-12)
+  - Bug mineur M01 : node Set Context hardcode `trigger_source=cron` → fix à faire dans l'UI ou par API (M02 a déjà le fix)
+- ⏳ **V0.6** — coliver + SEO branchés sur Supabase + activity feed live
 
 ---
 
-## 🔒 Dettes de sécurité à régler
+## 🔒 Dettes de sécurité
 
-### 1. Rotater `N8N_WEBHOOK_SECRET`
-Le secret actuel a été partagé en clair dans une conversation Claude. À régénérer dès que possible :
+### 1. ✅ `N8N_WEBHOOK_SECRET` rotaté (Yann, 2026-06-12)
+Réglé. Le nouveau secret est dans les secrets GH Actions + `/root/dashboard-os/.env` (VPS) + `.env` local.
+Si besoin de le relire : `ssh -i ~/.ssh/hostinger_vps root@2.24.8.83 "grep '^N8N_WEBHOOK_SECRET=' /root/dashboard-os/.env"` — ne jamais le coller en clair dans une conversation.
+
+### 2. ✅ (à surveiller) Whitelist UFW des IPs GitHub Actions
+Semble résolue : 2 deploys auto consécutifs réussis les 2026-06-11 et 2026-06-12. Si un deploy retombe en timeout SSH, relancer sur le VPS :
 ```bash
-# Sur le mac
-NEW=$(openssl rand -hex 32) && echo "$NEW"
-
-# 1. Update les 2 secrets GH (N8N_WEBHOOK_SECRET côté Actions)
-# 2. SSH VPS : update /root/dashboard-os/.env (les 2 lignes VITE_N8N_WEBHOOK_SECRET et N8N_WEBHOOK_SECRET)
-# 3. cd /root/dashboard-os && docker compose up -d --build
-```
-
-### 2. Whitelist UFW des IPs GitHub Actions
-Les runners GH ont un pool d'IPs énorme qui change. Le whitelist actuel ne couvre qu'une partie → chaque deploy via push échoue souvent. Solution durable :
-```bash
-# Sur le VPS — script à exécuter manuellement (ou cron 1x/semaine)
 curl -s https://api.github.com/meta | jq -r '.actions[]' | while read cidr; do
   ufw allow from "$cidr" to any port 22 proto tcp comment 'GH Actions'
 done
 ufw reload
 ```
-~3000 règles UFW mais elles sont stables.
+**Alternative plus propre (à terme)** : Tailscale (runner GH rejoint le tailnet → SSH via 100.x.y.z, plus de whitelist). Effort ~30 min.
 
-**Alternative plus propre (à terme)** : passer par Tailscale (runner GH installe Tailscale → rejoint le tailnet du VPS → SSH via 100.x.y.z). Pas de whitelist IP nécessaire, plus sécurisé. Effort ~30 min.
-
-**Workaround actuel** : déploiement manuel par SSH depuis le mac (clé `~/.ssh/hostinger_vps`) :
+**Workaround si bloqué** : deploy manuel depuis le mac :
 ```bash
 ssh -i ~/.ssh/hostinger_vps root@2.24.8.83 \
   "cd /root/dashboard-os && git pull origin main && docker compose up -d --build"
 ```
+
+### 3. Clé API n8n
+Stockée dans `.env` local (`N8N_API_KEY`, gitignoré). Permet de gérer les workflows par API REST (`https://n8n.makeitapp.fr/api/v1/...`). JWT sans expiration courte → à régénérer dans n8n Settings → API si compromise.
 
 ---
 

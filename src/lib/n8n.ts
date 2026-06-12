@@ -12,7 +12,9 @@ export async function triggerMachine(params: {
   if (!WEBHOOK_URL || !WEBHOOK_SECRET) {
     throw new Error('Webhook n8n non configuré (VITE_N8N_WEBHOOK_URL / VITE_N8N_WEBHOOK_SECRET).');
   }
-  const res = await fetch(WEBHOOK_URL, {
+  // VITE_N8N_WEBHOOK_URL pointe sur m01-trigger ; on dérive le path des autres machines
+  const url = WEBHOOK_URL.replace(/[^/]+$/, `${params.machineCode.toLowerCase()}-trigger`);
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

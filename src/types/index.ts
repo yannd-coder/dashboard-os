@@ -111,6 +111,33 @@ export interface PostDraft {
   createdAt: Date;
 }
 
+export type ProspectSource = 'email' | 'lodgify' | 'form' | 'whatsapp' | 'phone' | 'other';
+export type ProspectStatus = 'new' | 'replied' | 'ignored';
+
+export interface Prospect {
+  id: string;
+  source: ProspectSource;
+  emailFrom: string | null;
+  subject: string | null;
+  body: string;
+  requestSummary: string | null;
+  status: ProspectStatus;
+  receivedAt: Date | null;
+  createdAt: Date;
+}
+
+export type ResponseDraftStatus = 'pending' | 'approved' | 'rejected' | 'sent';
+
+export interface ResponseDraft {
+  id: string;
+  prospect: Prospect | null;
+  content: string;
+  status: ResponseDraftStatus;
+  decidedAt: Date | null;
+  notes: string | null;
+  createdAt: Date;
+}
+
 export interface SeoLink {
   id: string;
   domain: string;
