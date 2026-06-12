@@ -20,7 +20,7 @@
 | 📊 Dashboard hero lit count dynamique agents/machines | V0.3 |
 | 🤖 M01 Posts FB/IG : cron lun+jeu 9h Réunion + bouton dashboard → drafts à approuver `/machines/M01` | V0.4 |
 | 📬 M02 Réponse prospects : webhook OK, page `/machines/M02` — IMAP + Lodgify à brancher (voir `n8n/M02_setup.md`) | V0.5 |
-| 🚀 Pipeline auto | `git push origin main` → live en 30-45s (**refonctionne** depuis le 2026-06-11) |
+| 🚀 Pipeline auto | `git push origin main` → live en 30-45s (⚠️ loterie IP runner — voir dette UFW, fallback deploy manuel SSH) |
 
 ⚠️ **Encore en mock** : `/coliver`, `/seo`, `/analytics`, ActivityFeed, dashboardStats — à brancher quand le besoin se présentera.
 
@@ -127,8 +127,8 @@ WHERE prenom = 'Yann';
 Réglé. Le nouveau secret est dans les secrets GH Actions + `/root/dashboard-os/.env` (VPS) + `.env` local.
 Si besoin de le relire : `ssh -i ~/.ssh/hostinger_vps root@2.24.8.83 "grep '^N8N_WEBHOOK_SECRET=' /root/dashboard-os/.env"` — ne jamais le coller en clair dans une conversation.
 
-### 2. ✅ (à surveiller) Whitelist UFW des IPs GitHub Actions
-Semble résolue : 2 deploys auto consécutifs réussis les 2026-06-11 et 2026-06-12. Si un deploy retombe en timeout SSH, relancer sur le VPS :
+### 2. ❌ Whitelist UFW des IPs GitHub Actions — TOUJOURS OUVERTE
+Deploys auto en loterie selon l'IP du runner : 2 réussis les 11-12/06 puis **timeout SSH le 2026-06-12** (run 27398425160). Fix : relancer sur le VPS :
 ```bash
 curl -s https://api.github.com/meta | jq -r '.actions[]' | while read cidr; do
   ufw allow from "$cidr" to any port 22 proto tcp comment 'GH Actions'
