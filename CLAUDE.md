@@ -164,6 +164,14 @@ Vue lors du patch V0.6 — la clé `sk-ant-...` est hardcodée dans le paramètr
 ### 5. `BROWSERLESS_TOKEN` (V0.6)
 Token d'auth pour le service browserless (rendu HTML→PNG sur le VPS). Le `docker-compose.yml` a un fallback hardcodé (`yannos-browserless-local-only`) qui suffit car browserless n'écoute que sur `127.0.0.1:3001` (loopback). Pour renforcer : `openssl rand -hex 32` puis ajouter le secret `BROWSERLESS_TOKEN` dans https://github.com/yannd-coder/dashboard-os/settings/secrets/actions et **mettre à jour le workflow n8n M01** (nœuds Render FB/IG Visual : query param `?token=...`).
 
+### 6. ⚠️ Connexion réseau n8n ↔ `dashboard-net` non persistante au rebuild
+**V0.6/0.7** : n8n a été lancé via `docker run` (pas docker-compose), dans le réseau `bridge` par défaut. Pour qu'il atteigne browserless par nom (`dashboard-browserless:3000`), on l'a attaché manuellement à `dashboard-net` :
+```bash
+docker network connect dashboard-net n8n
+```
+Cette connexion **survit aux redémarrages** du container mais **PAS à un `docker rm` puis `docker run`**. Si tu rebuilds n8n un jour (mise à jour image), relance cette commande, sinon les Render FB/IG Visual et Rerender Visual planteront avec "cannot establish connection".
+Solution propre à terme : créer un `docker-compose.yml` pour n8n avec `networks: [dashboard-net]` (network external), et `compose up -d`.
+
 ---
 
 ## ⚠️ Pièges connus (à pas répéter)

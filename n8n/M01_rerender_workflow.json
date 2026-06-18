@@ -53,7 +53,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:3001/screenshot?token=yannos-browserless-local-only",
+        "url": "http://dashboard-browserless:3000/screenshot?token=yannos-browserless-local-only",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -65,7 +65,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => {\n  const draft = $('Get Draft').item.json;\n  const webhook = $('Webhook').item.json.body;\n  const photoUrl = draft.visual_photo_url || '';\n  const accroche = webhook.new_accroche || draft.visual_accroche || '';\n  const qs = new URLSearchParams({\n    format: 'square',\n    photo: photoUrl,\n    accroche: accroche,\n    l1: 'VILLA COLIVER',\n    l2: 'SAINT-PIERRE'\n  });\n  const url = 'http://dashboard:80/templates/visual.html?' + qs.toString();\n  return JSON.stringify({\n    url: url,\n    options: { type: 'png', clip: { x: 0, y: 0, width: 1080, height: 1080 } },\n    viewport: { width: 1080, height: 1080, deviceScaleFactor: 1 },\n    gotoOptions: { waitUntil: 'networkidle0', timeout: 20000 }\n  });\n})() }}",
+        "jsonBody": "={{ (() => {\n  const draft = $('Get Draft').item.json;\n  const webhook = $('Webhook').item.json.body;\n  const photoUrl = draft.visual_photo_url || '';\n  const accroche = (webhook && webhook.new_accroche) || draft.visual_accroche || '';\n  const qs = 'format=square'\n    + '&photo=' + encodeURIComponent(photoUrl)\n    + '&accroche=' + encodeURIComponent(accroche)\n    + '&l1=' + encodeURIComponent('VILLA COLIVER')\n    + '&l2=' + encodeURIComponent('SAINT-PIERRE');\n  const url = 'http://dashboard:80/templates/visual.html?' + qs;\n  return JSON.stringify({\n    url: url,\n    options: { type: 'png', clip: { x: 0, y: 0, width: 1080, height: 1080 } },\n    viewport: { width: 1080, height: 1080, deviceScaleFactor: 1 },\n    gotoOptions: { waitUntil: 'networkidle0', timeout: 20000 }\n  });\n})() }}",
         "options": {
           "response": {
             "response": {
