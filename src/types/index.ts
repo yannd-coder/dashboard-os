@@ -97,6 +97,12 @@ export interface MachineRun {
 export type DraftNetwork = 'facebook' | 'instagram';
 export type DraftStatus = 'pending' | 'approved' | 'rejected' | 'published';
 
+export interface PostDraftImageUrls {
+  square?: string;
+  story?: string;
+  banner?: string;
+}
+
 export interface PostDraft {
   id: string;
   machineRunId: string | null;
@@ -104,6 +110,7 @@ export interface PostDraft {
   network: DraftNetwork;
   accountHandle: string;
   content: string;
+  imageUrls: PostDraftImageUrls | null;
   status: DraftStatus;
   decidedAt: Date | null;
   decidedBy: string | null;
@@ -147,4 +154,15 @@ export interface SeoLink {
   status: 'live' | 'pending' | 'broken';
   acquiredAt: Date;
   cost: number;
+}
+
+export interface CampaignPhoto {
+  id: string;
+  storagePath: string;
+  publicUrl: string;
+  alt: string | null;
+  tags: string[];
+  isActive: boolean;
+  uploadedBy: string | null;
+  uploadedAt: Date;
 }

@@ -11,6 +11,7 @@ import { LiensSEO } from '@/pages/LiensSEO';
 import { Analytics } from '@/pages/Analytics';
 import { Settings } from '@/pages/Settings';
 import { Admin } from '@/pages/Admin';
+import { Visuels } from '@/pages/Visuels';
 import { Login } from '@/pages/Login';
 import { ChangePin } from '@/pages/ChangePin';
 
@@ -34,6 +35,14 @@ export default function App() {
                   <Route path="/seo" element={<LiensSEO />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route
+                    path="/visuels"
+                    element={
+                      <ProtectedRoute requireRole={['superadmin', 'admin']}>
+                        <Visuels />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/admin"
                     element={

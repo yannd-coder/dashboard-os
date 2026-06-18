@@ -23,6 +23,9 @@ tsconfig.node.tsbuildinfo
 .env.*.local
 .deploy
 
+# Scratch / POCs locaux (assets non versionnés)
+scratch/
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json

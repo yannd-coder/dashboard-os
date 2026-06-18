@@ -235,6 +235,16 @@ function DraftCard({
         </div>
         <DraftStatusBadge status={draft.status} />
       </div>
+      {draft.imageUrls?.square && (
+        <div className="aspect-square w-full overflow-hidden bg-bg-base">
+          <img
+            src={draft.imageUrls.square}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
       <div className="p-4">
         <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-secondary">
           {draft.content}

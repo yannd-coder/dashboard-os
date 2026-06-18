@@ -3,6 +3,7 @@ import { resolveIcon } from './icons';
 import type { AdminUserRow, AppUser, Role } from '@/types/auth';
 import type {
   Agent,
+  CampaignPhoto,
   DraftNetwork,
   DraftStatus,
   GradientName,
@@ -94,6 +95,7 @@ type DashboardDraftRow = {
   network: DraftNetwork;
   account_handle: string;
   content: string;
+  image_urls: { square?: string; story?: string; banner?: string } | null;
   status: DraftStatus;
   decided_at: string | null;
   decided_by: string | null;
@@ -132,7 +134,7 @@ export async function fetchDrafts(
   let query = supabase
     .from('dashboard_posts_drafts')
     .select(
-      'id, machine_run_id, machine_code, network, account_handle, content, status, decided_at, decided_by, notes, created_at',
+      'id, machine_run_id, machine_code, network, account_handle, content, image_urls, status, decided_at, decided_by, notes, created_at',
     )
     .eq('machine_code', machineCode)
     .order('created_at', { ascending: false })
@@ -147,6 +149,7 @@ export async function fetchDrafts(
     network: row.network,
     accountHandle: row.account_handle,
     content: row.content,
+    imageUrls: row.image_urls,
     status: row.status,
     decidedAt: row.decided_at ? new Date(row.decided_at) : null,
     decidedBy: row.decided_by,
@@ -343,6 +346,106 @@ export async function rpcUpdateUser(
 export async function rpcDeleteUser(userId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('dashboard_delete_user', {
     p_user_id: userId,
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+// === Campaign Photos (V0.6 — bibliothèque visuelle M01) ===
+
+type DashboardCampaignPhotoRow = {
+  id: string;
+  storage_path: string;
+  public_url: string;
+  alt: string | null;
+  tags: string[] | null;
+  is_active: boolean;
+  uploaded_by: string | null;
+  uploaded_at: string;
+};
+
+function mapCampaignPhoto(row: DashboardCampaignPhotoRow): CampaignPhoto {
+  return {
+    id: row.id,
+    storagePath: row.storage_path,
+    publicUrl: row.public_url,
+    alt: row.alt,
+    tags: row.tags ?? [],
+    isActive: row.is_active,
+    uploadedBy: row.uploaded_by,
+    uploadedAt: new Date(row.uploaded_at),
+  };
+}
+
+export async function fetchCampaignPhotos(): Promise<CampaignPhoto[]> {
+  const { data, error } = await supabase
+    .from('dashboard_campaign_photos')
+    .select('id, storage_path, public_url, alt, tags, is_active, uploaded_by, uploaded_at')
+    .order('uploaded_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row: DashboardCampaignPhotoRow) => mapCampaignPhoto(row));
+}
+
+export async function uploadCampaignPhoto(
+  userId: string,
+  blob: Blob,
+  alt: string | null,
+  tags: string[],
+): Promise<CampaignPhoto> {
+  const ext =
+    blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+  const storagePath = `${crypto.randomUUID()}.${ext}`;
+
+  const { error: upErr } = await supabase.storage
+    .from('campaign-photos')
+    .upload(storagePath, blob, {
+      contentType: blob.type || 'image/jpeg',
+      cacheControl: '31536000',
+      upsert: false,
+    });
+  if (upErr) throw upErr;
+
+  const { data: urlData } = supabase.storage
+    .from('campaign-photos')
+    .getPublicUrl(storagePath);
+
+  const { data, error } = await supabase.rpc('dashboard_create_campaign_photo', {
+    p_user_id: userId,
+    p_storage_path: storagePath,
+    p_public_url: urlData.publicUrl,
+    p_alt: alt,
+    p_tags: tags,
+  });
+  if (error) {
+    await supabase.storage.from('campaign-photos').remove([storagePath]).catch(() => undefined);
+    throw error;
+  }
+  return mapCampaignPhoto(data as DashboardCampaignPhotoRow);
+}
+
+export async function rpcUpdateCampaignPhoto(
+  userId: string,
+  photoId: string,
+  patch: { alt?: string | null; tags?: string[]; isActive?: boolean },
+): Promise<CampaignPhoto> {
+  const { data, error } = await supabase.rpc('dashboard_update_campaign_photo', {
+    p_user_id: userId,
+    p_photo_id: photoId,
+    p_alt: patch.alt ?? null,
+    p_tags: patch.tags ?? null,
+    p_is_active: patch.isActive ?? null,
+  });
+  if (error) throw error;
+  return mapCampaignPhoto(data as DashboardCampaignPhotoRow);
+}
+
+export async function rpcDeleteCampaignPhoto(
+  userId: string,
+  photoId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_delete_campaign_photo', {
+    p_user_id: userId,
+    p_photo_id: photoId,
   });
   if (error) throw error;
   return Boolean(data);

@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bot,
+  Images,
   LayoutDashboard,
   Link as LinkIcon,
   Palmtree,
@@ -18,5 +19,6 @@ export const navItems: NavItem[] = [
   { label: 'Liens SEO', href: '/seo', icon: LinkIcon },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Visuels', href: '/visuels', icon: Images, roles: ['superadmin', 'admin'] },
   { label: 'Admin', href: '/admin', icon: ShieldCheck, roles: ['superadmin'] },
 ];

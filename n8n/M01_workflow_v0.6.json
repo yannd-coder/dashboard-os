@@ -1,0 +1,760 @@
+{
+  "name": "M01 — Posts Coworking ARIA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "m01-trigger",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3acbd826-75fd-4e0a-98e8-fca3bec414a6",
+      "name": "Webhook",
+      "webhookId": "ea4c9450-1fe1-4731-ae10-08f18c2ea703"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5 * * 1,4"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        128
+      ],
+      "id": "5a696faf-c54f-4b33-b7da-ebff2e3bb5ae",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "353f57a4-a8ae-4ff9-8cce-c95274e63d62",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "913626d6-fb49-402e-a280-4009e395d6c8",
+              "name": "machine_code",
+              "value": "M01",
+              "type": "string"
+            },
+            {
+              "id": "8c0d4256-491c-4e55-ba18-c9d26f6958ce",
+              "name": "coworking_name",
+              "value": " Coliver Tropical — Espace Coworking",
+              "type": "string"
+            },
+            {
+              "id": "f47c8808-913a-4c43-9a75-3849ff46ea1c",
+              "name": "location",
+              "value": "Saint-Pierre, La Réunion (île tropicale, océan Indien)",
+              "type": "string"
+            },
+            {
+              "id": "35418274-01e4-4dd0-bda4-2296a46c1968",
+              "name": "vibe",
+              "value": "coworking tropical face à la nature, communauté de freelances et entrepreneurs, ambiance décontractée et inspirante, wifi fibre, espaces intérieurs et extérieurs",
+              "type": "string"
+            },
+            {
+              "id": "bebb65c7-7a8d-4a1d-a70b-ce6c19fcbf9f",
+              "name": "cta_text",
+              "value": "Réserve ton bureau",
+              "type": "string"
+            },
+            {
+              "id": "7fa77364-ac83-4729-9e6e-f88ba0e2c8b8",
+              "name": "cta_url",
+              "value": "https://coliver-coworking-book.makeitapp.fr",
+              "type": "string"
+            },
+            {
+              "id": "7cb2e77a-d967-4f36-b4dc-29edff21994e",
+              "name": "fb_handle",
+              "value": "coliver974",
+              "type": "string"
+            },
+            {
+              "id": "85ec40cc-36c0-4227-8ebe-cefc075b3e5a",
+              "name": "ig_handle",
+              "value": "@coworkingtropical_coliver",
+              "type": "string"
+            },
+            {
+              "id": "6bc1390d-6489-4178-b5e2-eecacb47010c",
+              "name": "hashtags",
+              "value": "#coworking #lareunion #coworkingreunion #entrepreneur #freelance #teletravailler #coliver #colivertropical #974#digitalnomads",
+              "type": "string"
+            },
+            {
+              "id": "57e57117-d46e-41c4-8927-3ad601c40e49",
+              "name": "trigger_source",
+              "value": "={{ $json.trigger_source ?? 'cron' }}",
+              "type": "string"
+            },
+            {
+              "id": "84d68b78-abf3-4b46-a21a-374bc2ae2ba1",
+              "name": "triggered_by",
+              "value": "={{ $json.triggered_by ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "c21cc974-a324-4984-b450-076b6129605f",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        336,
+        272
+      ],
+      "id": "f661d620-b707-429d-b94e-380983901ad7",
+      "name": "Set Context"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_create_machine_run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_machine_code\": \"{{ $json.machine_code }}\",\n  \"p_trigger_source\": \"{{ $json.trigger_source }}\",\n  \"p_user_id\": null\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        544,
+        272
+      ],
+      "id": "85a2ecf3-9760-420a-a3d9-32f9b30efb8c",
+      "name": "Create Run"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "__ANTHROPIC_API_KEY__"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{ (() => {\n  const themes = [\n    \"Coworking tropical : ambiance nature, palmiers, espaces intérieurs/extérieurs\",\n    \"Digital nomad : remote work, fibre, décalage horaire, qualité de vie\",\n    \"Communauté : rencontres, échanges, colivers, entraide\",\n    \"Lifestyle Réunion : surf, randonnée, bassins, street food créole\",\n    \"Work & Chill : équilibre pro/perso, hamac, piscine, productivité\"\n  ];\n  const theme = themes[Math.floor(Math.random() * themes.length)];\n  return JSON.stringify({\n    model: \"claude-opus-4-7\",\n    max_tokens: 700,\n    system: \"Tu es ARIA, créatrice de contenu pour \" + $('Set Context').item.json.coworking_name + \" (\" + $('Set Context').item.json.location + \"). Vibe : \" + $('Set Context').item.json.vibe + \". CTA : \" + $('Set Context').item.json.cta_text + \" \\u2192 \" + $('Set Context').item.json.cta_url + \". Tu réponds UNIQUEMENT avec un objet JSON valide, rien d'autre, pas de markdown.\",\n    messages: [{ role: \"user\", content: \"Génère UN post Facebook + UNE accroche visuelle pour ce thème : \\\"\" + theme + \"\\\".\\n\\nRetourne STRICTEMENT cet objet JSON, rien d'autre :\\n{\\n  \\\"caption\\\": \\\"<texte du post FB : 5 lignes max, 600 caractères, ton ami, pas de hashtags, termine par CTA + URL>\\\",\\n  \\\"accroche_visuel\\\": \\\"<phrase courte 3-6 mots qui sera affichée en gros sur une photo, style poétique/aspirationnel, peut être sur 2-3 lignes séparées par \\\\\\\\n>\\\"\\n}\\n\\nCTA URL à inclure dans caption : \" + $('Set Context').item.json.cta_url + \"\\n\\nExemple d'accroche_visuel : \\\"Travailler les pieds dans l'eau\\\" ou \\\"Pose ton ordi\\\\\\\\nsous les palmiers\\\". Pas de ponctuation finale.\" }]\n  });\n})() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        752,
+        272
+      ],
+      "id": "4a6e5755-759f-4b52-acb5-d7999ca48672",
+      "name": "Claude FB"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_add_draft",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{ (() => {\n  const raw = $('Claude FB').item.json.content[0].text;\n  let parsed = {};\n  try { parsed = JSON.parse(raw); } catch(e) { parsed = { caption: raw, accroche_visuel: '' }; }\n  const visualUrl = 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/public/campaign-photos/generated/' + $('Create Run').item.json.data + '-fb.png';\n  return JSON.stringify({\n    p_run_id: $('Create Run').item.json.data,\n    p_machine_code: 'M01',\n    p_network: 'facebook',\n    p_account_handle: $('Set Context').item.json.fb_handle,\n    p_content: parsed.caption || raw,\n    p_image_urls: { square: visualUrl }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        960,
+        272
+      ],
+      "id": "f279d85f-3a33-4360-8f9a-5b663c6f6b32",
+      "name": "Insert FB Draft"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "x-api-key",
+              "value": "__ANTHROPIC_API_KEY__"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const themes = [\n    \"Coworking tropical : ambiance nature, palmiers, espaces intérieurs/extérieurs\",\n    \"Digital nomad : remote work, fibre, décalage horaire, qualité de vie\",\n    \"Communauté : rencontres, échanges, colivers, entraide\",\n    \"Lifestyle Réunion : surf, randonnée, bassins, street food créole\",\n    \"Work & Chill : équilibre pro/perso, hamac, piscine, productivité\"\n  ];\n  const theme = themes[Math.floor(Math.random() * themes.length)];\n  return JSON.stringify({\n    model: \"claude-opus-4-7\",\n    max_tokens: 700,\n    system: \"Tu es ARIA, créatrice de contenu pour \" + $('Set Context').item.json.coworking_name + \" (\" + $('Set Context').item.json.location + \"). Vibe : \" + $('Set Context').item.json.vibe + \". CTA : \" + $('Set Context').item.json.cta_text + \" \\u2192 \" + $('Set Context').item.json.cta_url + \". Tu réponds UNIQUEMENT avec un objet JSON valide, rien d'autre, pas de markdown.\",\n    messages: [{ role: \"user\", content: \"Génère UN post Instagram + UNE accroche visuelle pour ce thème : \\\"\" + theme + \"\\\".\\n\\nRetourne STRICTEMENT cet objet JSON, rien d'autre :\\n{\\n  \\\"caption\\\": \\\"<texte du post IG : 4-6 lignes, emoji ok, finit par \" + $('Set Context').item.json.hashtags + \" et lien en bio (\" + $('Set Context').item.json.cta_url + \")>\\\",\\n  \\\"accroche_visuel\\\": \\\"<phrase courte 3-6 mots qui sera affichée en gros sur une photo, style poétique/aspirationnel, peut être sur 2-3 lignes séparées par \\\\\\\\n>\\\"\\n}\\n\\nExemple d'accroche_visuel : \\\"Travailler les pieds dans l'eau\\\" ou \\\"Pose ton ordi\\\\\\\\nsous les palmiers\\\". Pas de ponctuation finale.\" }]\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1168,
+        272
+      ],
+      "id": "a63d2bc7-09db-4d77-bb12-b57b66a8a40e",
+      "name": "Claude IG"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_add_draft",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{ (() => {\n  const raw = $('Claude IG').item.json.content[0].text;\n  let parsed = {};\n  try { parsed = JSON.parse(raw); } catch(e) { parsed = { caption: raw, accroche_visuel: '' }; }\n  const visualUrl = 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/public/campaign-photos/generated/' + $('Create Run').item.json.data + '-ig.png';\n  return JSON.stringify({\n    p_run_id: $('Create Run').item.json.data,\n    p_machine_code: 'M01',\n    p_network: 'instagram',\n    p_account_handle: $('Set Context').item.json.ig_handle,\n    p_content: parsed.caption || raw,\n    p_image_urls: { square: visualUrl }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1376,
+        272
+      ],
+      "id": "f567f447-4a11-4b35-b8ab-36b37762d5ad",
+      "name": "Insert IG Draft"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_complete_machine_run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({\n  p_run_id: $('Create Run').item.json.data,\n  p_status: \"success\",\n  p_summary: \"2 drafts générés (FB + IG) — en attente d'approbation\"\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        272
+      ],
+      "id": "24f3e08e-5135-49ac-bc2f-e23bd594f8d6",
+      "name": "Complete Run"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_random_campaign_photo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "176dc89a-a41d-45f1-9cce-d03989966f7c",
+      "name": "Pick Photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/screenshot?token=yannos-browserless-local-only",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const photoUrl = $('Pick Photo').item.json.public_url;\n  const claudeRaw = $('Claude FB').item.json.content[0].text;\n  let accroche = 'Bienvenue';\n  try { accroche = JSON.parse(claudeRaw).accroche_visuel || accroche; } catch(e) {}\n  const qs = new URLSearchParams({\n    format: 'square',\n    photo: photoUrl,\n    accroche: accroche,\n    l1: 'VILLA COLIVER',\n    l2: 'SAINT-PIERRE'\n  });\n  const url = 'http://dashboard:80/templates/visual.html?' + qs.toString();\n  return JSON.stringify({\n    url: url,\n    options: { type: 'png', clip: { x: 0, y: 0, width: 1080, height: 1080 } },\n    viewport: { width: 1080, height: 1080, deviceScaleFactor: 1 },\n    gotoOptions: { waitUntil: 'networkidle0', timeout: 20000 }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "c2ec94b8-ce4b-45f1-bcc8-095b1d079065",
+      "name": "Render FB Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/campaign-photos/generated/' + $('Create Run').item.json.data + '-fb.png' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            },
+            {
+              "name": "Cache-Control",
+              "value": "max-age=31536000"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "922eddaa-1523-470d-a63f-494bccc22b99",
+      "name": "Upload FB Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/screenshot?token=yannos-browserless-local-only",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const photoUrl = $('Pick Photo').item.json.public_url;\n  const claudeRaw = $('Claude IG').item.json.content[0].text;\n  let accroche = 'Bienvenue';\n  try { accroche = JSON.parse(claudeRaw).accroche_visuel || accroche; } catch(e) {}\n  const qs = new URLSearchParams({\n    format: 'square',\n    photo: photoUrl,\n    accroche: accroche,\n    l1: 'VILLA COLIVER',\n    l2: 'SAINT-PIERRE'\n  });\n  const url = 'http://dashboard:80/templates/visual.html?' + qs.toString();\n  return JSON.stringify({\n    url: url,\n    options: { type: 'png', clip: { x: 0, y: 0, width: 1080, height: 1080 } },\n    viewport: { width: 1080, height: 1080, deviceScaleFactor: 1 },\n    gotoOptions: { waitUntil: 'networkidle0', timeout: 20000 }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "828b7632-20cd-4596-99cc-edb43eb7a7df",
+      "name": "Render IG Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2620,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/campaign-photos/generated/' + $('Create Run').item.json.data + '-ig.png' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            },
+            {
+              "name": "Cache-Control",
+              "value": "max-age=31536000"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "ec9c62b5-9717-4c6a-8caa-cefa81ea2abd",
+      "name": "Upload IG Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2820,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Set Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Context": {
+      "main": [
+        [
+          {
+            "node": "Pick Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Run": {
+      "main": [
+        [
+          {
+            "node": "Claude FB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude FB": {
+      "main": [
+        [
+          {
+            "node": "Render FB Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert FB Draft": {
+      "main": [
+        [
+          {
+            "node": "Claude IG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude IG": {
+      "main": [
+        [
+          {
+            "node": "Render IG Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert IG Draft": {
+      "main": [
+        [
+          {
+            "node": "Complete Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Photo": {
+      "main": [
+        [
+          {
+            "node": "Create Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render FB Visual": {
+      "main": [
+        [
+          {
+            "node": "Upload FB Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload FB Visual": {
+      "main": [
+        [
+          {
+            "node": "Insert FB Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render IG Visual": {
+      "main": [
+        [
+          {
+            "node": "Upload IG Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload IG Visual": {
+      "main": [
+        [
+          {
+            "node": "Insert IG Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  }
+}

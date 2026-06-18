@@ -2,13 +2,13 @@
 
 > Fichier local à lire **après** le CLAUDE.md global, **avant** le CLAUDE_CONTEXT.md.
 > Contient l'état réel du projet et la roadmap.
-> Dernière maj : 2026-06-12.
+> Dernière maj : 2026-06-18.
 
 ---
 
 ## 📊 État du projet
 
-**V0.4 livrée + V0.5 (M02) construite, en attente credentials** — M01 opérationnelle en prod, M02 e2e validée via webhook.
+**V0.6 (visuels M01) construite, en attente déploiement** — V0.4 et V0.5 en prod, V0.6 prête à push.
 
 | Ce qui marche | URL / accès |
 |---|---|
@@ -20,6 +20,8 @@
 | 📊 Dashboard hero lit count dynamique agents/machines | V0.3 |
 | 🤖 M01 Posts FB/IG : cron lun+jeu 9h Réunion + bouton dashboard → drafts à approuver `/machines/M01` | V0.4 |
 | 📬 M02 Réponse prospects : webhook OK, page `/machines/M02` — IMAP + Lodgify à brancher (voir `n8n/M02_setup.md`) | V0.5 |
+| 🎨 Bibliothèque visuelle `/visuels` (superadmin/admin) — upload, tags, suppression, compression auto à 1920px JPEG q82 | V0.6 |
+| 🖼️ M01 enrichi : draft inclut un visuel généré (photo random + bandeau gris + accroche Allura) — preview dans DraftCard | V0.6 |
 | 🚀 Pipeline auto | `git push origin main` → live en 30-45s (⚠️ loterie IP runner — voir dette UFW, fallback deploy manuel SSH) |
 
 ⚠️ **Encore en mock** : `/coliver`, `/seo`, `/analytics`, ActivityFeed, dashboardStats — à brancher quand le besoin se présentera.
@@ -112,12 +114,22 @@ WHERE prenom = 'Yann';
 - ✅ **V0.2** — auth Prénom+PIN via Supabase RPC (commit `5bf2fdc` + infra `5094dcc` + `b52468a`)
 - ✅ **V0.3** — agents + machines lus depuis Supabase (commit `1e9fdfe`)
 - ✅ **V0.4** — M01 Posts Coworking dans n8n (workflow `3lG5bUiIwcD22dVl`, publié) : webhook + cron lun/jeu 5h UTC → Claude FB + IG → drafts pending → approve/reject dashboard. E2E validé le 2026-06-11. Fix CORS preflight Caddy + refetch échelonnés.
-- 🔧 **V0.5 — EN COURS** : M02 Réponse prospects (workflow `LrozR6S6eT729sil`, créé **par API n8n**, actif)
+- 🔧 **V0.5** : M02 Réponse prospects (workflow `LrozR6S6eT729sil`, créé **par API n8n**, actif)
   - Fait : tables `dashboard_prospects` + `dashboard_response_drafts` + 3 RPC, page `/machines/M02`, pipeline classify→reply Claude, e2e webhook validé, dédup `message_id`
   - ⏳ Bloqué sur Yann : boîte `contact@coliver.re` (credential IMAP) + clé API Lodgify (dispos/tarifs réels) — procédure dans `n8n/M02_setup.md`
   - M03 relances + M04 NDD scanner : **en pause** (décision Yann 2026-06-12)
   - Bug mineur M01 : node Set Context hardcode `trigger_source=cron` → fix à faire dans l'UI ou par API (M02 a déjà le fix)
-- ⏳ **V0.6** — coliver + SEO branchés sur Supabase + activity feed live
+- 🎨 **V0.6 — EN ATTENTE DE PUSH (2026-06-18)** : Visuels pour M01
+  - Table `dashboard_campaign_photos` + bucket Storage `campaign-photos` (public, 5 MB max, JPEG/PNG/WebP) — appliqués prod via MCP
+  - 5 RPC : `_dashboard_assert_admin`, `dashboard_create/update/delete/random_campaign_photo`
+  - Colonne `image_urls jsonb` ajoutée à `dashboard_posts_drafts` + RPC `dashboard_add_draft` étendue (param `p_image_urls`)
+  - Page `/visuels` (superadmin/admin) : drag-drop upload + compression auto 1920px JPEG q82 + tags optionnels + édition modale + suppression
+  - Service Docker `browserless` (chromium headless) ajouté au `docker-compose.yml` — écoute 127.0.0.1:3001, token via `BROWSERLESS_TOKEN` (fallback hardcodé OK)
+  - Template HTML `public/templates/visual.html` (logo Coliver embed base64, polices Allura + Montserrat via Google Fonts) — paramétré par query string `?format=&photo=&accroche=&l1=&l2=`
+  - Workflow M01 patché via API n8n : ajout `Pick Photo`, `Render FB Visual`, `Upload FB Visual`, idem IG ; Claude FB/IG produisent désormais `{caption, accroche_visuel}` en JSON
+  - Format unique pour V0.6 : carré 1080×1080 (story + banner remis à V0.7 si besoin)
+  - DraftCard affiche la preview du visuel au-dessus du texte
+- ⏳ **V0.7** — coliver + SEO branchés sur Supabase + activity feed live + formats story/banner si Yann en a besoin
 
 ---
 
@@ -145,6 +157,12 @@ ssh -i ~/.ssh/hostinger_vps root@2.24.8.83 \
 
 ### 3. Clé API n8n
 Stockée dans `.env` local (`N8N_API_KEY`, gitignoré). Permet de gérer les workflows par API REST (`https://n8n.makeitapp.fr/api/v1/...`). JWT sans expiration courte → à régénérer dans n8n Settings → API si compromise.
+
+### 4. ⚠️ Clé API Anthropic en clair dans le workflow n8n M01
+Vue lors du patch V0.6 — la clé `sk-ant-...` est hardcodée dans le paramètre `headerParameters` du nœud `Claude FB` (et `Claude IG`). Idem dans le workflow M02 a priori. À isoler en "credentials n8n" puis référencer via `{{ $credentials.anthropic.apiKey }}`. Setup ~10 min via UI n8n.
+
+### 5. `BROWSERLESS_TOKEN` (V0.6)
+Token d'auth pour le service browserless (rendu HTML→PNG sur le VPS). Le `docker-compose.yml` a un fallback hardcodé (`yannos-browserless-local-only`) qui suffit car browserless n'écoute que sur `127.0.0.1:3001` (loopback). Pour renforcer : `openssl rand -hex 32` puis ajouter le secret `BROWSERLESS_TOKEN` dans https://github.com/yannd-coder/dashboard-os/settings/secrets/actions et **mettre à jour le workflow n8n M01** (nœuds Render FB/IG Visual : query param `?token=...`).
 
 ---
 

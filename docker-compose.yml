@@ -16,6 +16,27 @@ services:
     ports:
       - "127.0.0.1:3000:80"
 
+  # V0.6 — Moteur de rendu HTML→PNG pour les visuels M01.
+  # Écoute uniquement sur 127.0.0.1:3001 (loopback host) — pas exposé publiquement.
+  # Appelé par n8n via http://host.docker.internal:3001 (depuis Docker) ou http://127.0.0.1:3001 (host).
+  browserless:
+    image: ghcr.io/browserless/chromium:latest
+    container_name: dashboard-browserless
+    restart: unless-stopped
+    networks:
+      - dashboard-net
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      # Token requis par browserless v2. Fallback hardcodé OK car écoute seulement 127.0.0.1.
+      TOKEN: ${BROWSERLESS_TOKEN:-yannos-browserless-local-only}
+      # Protection mémoire (VPS Hostinger ~4 GB)
+      MAX_CONCURRENT_SESSIONS: "2"
+      MAX_QUEUE_LENGTH: "5"
+      TIMEOUT: "30000"
+      # Args Chromium nécessaires en container
+      DEFAULT_LAUNCH_ARGS: '["--no-sandbox","--disable-dev-shm-usage","--font-render-hinting=none"]'
+
   caddy:
     image: caddy:2.8-alpine
     container_name: dashboard-caddy
