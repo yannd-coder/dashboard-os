@@ -96,6 +96,8 @@ type DashboardDraftRow = {
   account_handle: string;
   content: string;
   image_urls: { square?: string; story?: string; banner?: string } | null;
+  visual_accroche: string | null;
+  visual_photo_url: string | null;
   status: DraftStatus;
   decided_at: string | null;
   decided_by: string | null;
@@ -134,7 +136,7 @@ export async function fetchDrafts(
   let query = supabase
     .from('dashboard_posts_drafts')
     .select(
-      'id, machine_run_id, machine_code, network, account_handle, content, image_urls, status, decided_at, decided_by, notes, created_at',
+      'id, machine_run_id, machine_code, network, account_handle, content, image_urls, visual_accroche, visual_photo_url, status, decided_at, decided_by, notes, created_at',
     )
     .eq('machine_code', machineCode)
     .order('created_at', { ascending: false })
@@ -150,6 +152,8 @@ export async function fetchDrafts(
     accountHandle: row.account_handle,
     content: row.content,
     imageUrls: row.image_urls,
+    visualAccroche: row.visual_accroche,
+    visualPhotoUrl: row.visual_photo_url,
     status: row.status,
     decidedAt: row.decided_at ? new Date(row.decided_at) : null,
     decidedBy: row.decided_by,
@@ -169,6 +173,22 @@ export async function rpcDecideDraft(
     p_decision: decision,
     p_user_id: userId,
     p_notes: notes ?? null,
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function rpcUpdateDraft(
+  draftId: string,
+  userId: string,
+  patch: { content?: string; visualAccroche?: string },
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_update_draft', {
+    p_draft_id: draftId,
+    p_user_id: userId,
+    p_content: patch.content ?? null,
+    p_visual_accroche: patch.visualAccroche ?? null,
+    p_image_urls: null,
   });
   if (error) throw error;
   return Boolean(data);

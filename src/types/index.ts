@@ -111,6 +111,8 @@ export interface PostDraft {
   accountHandle: string;
   content: string;
   imageUrls: PostDraftImageUrls | null;
+  visualAccroche: string | null;
+  visualPhotoUrl: string | null;
   status: DraftStatus;
   decidedAt: Date | null;
   decidedBy: string | null;

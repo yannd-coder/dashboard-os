@@ -1,0 +1,262 @@
+{
+  "name": "M01 — Rerender Visual",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "m01-rerender-visual",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "7d494b59-a702-40c4-8ae3-61f771af4b30",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "m01-rerender-visual"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/dashboard_posts_drafts?id=eq.' + $('Webhook').item.json.body.draft_id + '&select=id,machine_run_id,network,visual_photo_url,visual_accroche' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.pgrst.object+json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f9b6a06e-6806-4874-816e-da86142521ec",
+      "name": "Get Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/screenshot?token=yannos-browserless-local-only",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const draft = $('Get Draft').item.json;\n  const webhook = $('Webhook').item.json.body;\n  const photoUrl = draft.visual_photo_url || '';\n  const accroche = webhook.new_accroche || draft.visual_accroche || '';\n  const qs = new URLSearchParams({\n    format: 'square',\n    photo: photoUrl,\n    accroche: accroche,\n    l1: 'VILLA COLIVER',\n    l2: 'SAINT-PIERRE'\n  });\n  const url = 'http://dashboard:80/templates/visual.html?' + qs.toString();\n  return JSON.stringify({\n    url: url,\n    options: { type: 'png', clip: { x: 0, y: 0, width: 1080, height: 1080 } },\n    viewport: { width: 1080, height: 1080, deviceScaleFactor: 1 },\n    gotoOptions: { waitUntil: 'networkidle0', timeout: 20000 }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "09b204d8-7380-4da4-a42a-33ad4917dd87",
+      "name": "Render Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/campaign-photos/generated/' + $('Get Draft').item.json.machine_run_id + '-' + ($('Get Draft').item.json.network === 'instagram' ? 'ig' : 'fb') + '.png' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            },
+            {
+              "name": "Cache-Control",
+              "value": "max-age=31536000"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "5e7dafb0-1721-4671-97bb-ee70764b1760",
+      "name": "Upload Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flqjaqocsugwbkbiuhhk.supabase.co/rest/v1/rpc/dashboard_update_draft",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sb_publishable_ZEztH4rLAFrFBBYGEhRy9w_FOiCic-m"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const draft = $('Get Draft').item.json;\n  const webhook = $('Webhook').item.json.body;\n  const network = draft.network === 'instagram' ? 'ig' : 'fb';\n  const ts = Date.now();\n  const newUrl = 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/public/campaign-photos/generated/' + draft.machine_run_id + '-' + network + '.png?v=' + ts;\n  return JSON.stringify({\n    p_draft_id: draft.id,\n    p_user_id: webhook.user_id,\n    p_visual_accroche: webhook.new_accroche || draft.visual_accroche,\n    p_image_urls: { square: newUrl }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "cc126081-192f-4ddc-9493-0f264ff38bb4",
+      "name": "Update Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d377f166-7908-45d1-b082-58727fde33a6",
+              "name": "success",
+              "value": "=true",
+              "type": "boolean"
+            },
+            {
+              "id": "80f01d7e-c475-42b4-8472-225fd33b6635",
+              "name": "image_url",
+              "value": "={{ (() => {\n  const draft = $('Get Draft').item.json;\n  const network = draft.network === 'instagram' ? 'ig' : 'fb';\n  return 'https://flqjaqocsugwbkbiuhhk.supabase.co/storage/v1/object/public/campaign-photos/generated/' + draft.machine_run_id + '-' + network + '.png?v=' + Date.now();\n})() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c61be828-a54c-41ab-b66e-772715253ff9",
+      "name": "Respond",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Draft": {
+      "main": [
+        [
+          {
+            "node": "Render Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Visual": {
+      "main": [
+        [
+          {
+            "node": "Upload Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Visual": {
+      "main": [
+        [
+          {
+            "node": "Update Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Draft": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

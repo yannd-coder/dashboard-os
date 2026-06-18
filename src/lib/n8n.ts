@@ -31,3 +31,32 @@ export async function triggerMachine(params: {
     throw new Error(`n8n a renvoyé ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
   }
 }
+
+export async function rerenderDraftVisual(params: {
+  draftId: string;
+  userId: string;
+  newAccroche: string;
+}): Promise<{ image_url: string }> {
+  if (!WEBHOOK_URL || !WEBHOOK_SECRET) {
+    throw new Error('Webhook n8n non configuré.');
+  }
+  const url = WEBHOOK_URL.replace(/[^/]+$/, 'm01-rerender-visual');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Webhook-Secret': WEBHOOK_SECRET,
+    },
+    body: JSON.stringify({
+      draft_id: params.draftId,
+      user_id: params.userId,
+      new_accroche: params.newAccroche,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`n8n a renvoyé ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  return { image_url: data.image_url ?? '' };
+}
