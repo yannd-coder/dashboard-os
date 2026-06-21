@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Check,
+  Download,
   Facebook,
   Instagram,
   Loader2,
@@ -22,7 +23,52 @@ import { useAuth } from '@/hooks/useAuth';
 import { isN8nConfigured, rerenderDraftVisual, triggerMachine } from '@/lib/n8n';
 import { rpcDecideDraft, rpcUpdateDraft } from '@/lib/api';
 import { cn, formatRelativeTime } from '@/lib/utils';
-import type { DraftNetwork, PostDraft } from '@/types';
+import type { DraftNetwork, DraftStatus, PostDraft } from '@/types';
+
+type DraftFilter = 'all' | DraftStatus;
+
+const DRAFT_FILTERS: Array<{ key: DraftFilter; label: string }> = [
+  { key: 'pending', label: 'En attente' },
+  { key: 'approved', label: 'Approuvés' },
+  { key: 'rejected', label: 'Rejetés' },
+  { key: 'published', label: 'Publiés' },
+  { key: 'all', label: 'Tout' },
+];
+
+function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function exportDraft(draft: PostDraft) {
+  const networkShort = draft.network === 'facebook' ? 'FB' : 'IG';
+  const dateStr = draft.createdAt.toISOString().slice(0, 10);
+  const idShort = draft.id.slice(0, 8);
+  const baseName = `coliver_${networkShort}_${dateStr}_${idShort}`;
+
+  // 1. Image (depuis Supabase Storage)
+  if (draft.imageUrls?.square) {
+    try {
+      const res = await fetch(draft.imageUrls.square);
+      if (res.ok) {
+        const blob = await res.blob();
+        triggerBrowserDownload(blob, `${baseName}.jpg`);
+      }
+    } catch {
+      // Si le fetch image échoue, on continue avec le .txt
+    }
+  }
+
+  // 2. Texte du post
+  const txtBlob = new Blob([draft.content], { type: 'text/plain;charset=utf-8' });
+  triggerBrowserDownload(txtBlob, `${baseName}.txt`);
+}
 
 const networkConfig: Record<DraftNetwork, { label: string; icon: typeof Facebook; color: string }> = {
   facebook: { label: 'Facebook', icon: Facebook, color: 'text-[#1877F2]' },
@@ -41,11 +87,10 @@ export function MachineDetail() {
 
   const { runs, loading: loadingRuns, refetch: refetchRuns } = useMachineRuns(machineCode);
   const {
-    drafts: pendingDrafts,
-    loading: loadingPending,
-    refetch: refetchPending,
-  } = useDrafts(machineCode, 'pending');
-  const { drafts: decidedDrafts, refetch: refetchDecided } = useDrafts(machineCode, undefined, 20);
+    drafts: allDrafts,
+    loading: loadingDrafts,
+    refetch: refetchDrafts,
+  } = useDrafts(machineCode, undefined, 50);
 
   const [triggering, setTriggering] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(
@@ -53,6 +98,20 @@ export function MachineDetail() {
   );
   const [deciding, setDeciding] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<PostDraft | null>(null);
+  const [draftFilter, setDraftFilter] = useState<DraftFilter>('pending');
+
+  const draftCounts = useMemo(() => ({
+    all: allDrafts.length,
+    pending: allDrafts.filter((d) => d.status === 'pending').length,
+    approved: allDrafts.filter((d) => d.status === 'approved').length,
+    rejected: allDrafts.filter((d) => d.status === 'rejected').length,
+    published: allDrafts.filter((d) => d.status === 'published').length,
+  }), [allDrafts]);
+
+  const displayedDrafts = useMemo(
+    () => (draftFilter === 'all' ? allDrafts : allDrafts.filter((d) => d.status === draftFilter)),
+    [allDrafts, draftFilter],
+  );
 
   const canTrigger = isN8nConfigured() && !triggering;
 
@@ -69,8 +128,7 @@ export function MachineDetail() {
       for (const ms of [4000, 9000, 15000, 22000]) {
         setTimeout(() => {
           void refetchRuns();
-          void refetchPending();
-          void refetchDecided();
+          void refetchDrafts();
         }, ms);
       }
     } catch (e) {
@@ -88,7 +146,7 @@ export function MachineDetail() {
     setDeciding(draftId);
     try {
       await rpcDecideDraft(draftId, decision, user.id);
-      await Promise.all([refetchPending(), refetchDecided()]);
+      await refetchDrafts();
     } catch (e) {
       setFeedback({
         kind: 'error',
@@ -116,8 +174,6 @@ export function MachineDetail() {
   if (machine.code.toUpperCase() === 'M02') {
     return <MachineDetailM02 machine={machine} />;
   }
-
-  const recentDecidedDrafts = decidedDrafts.filter((d) => d.status !== 'pending').slice(0, 10);
 
   return (
     <div className="space-y-8">
@@ -164,51 +220,64 @@ export function MachineDetail() {
         </div>
       )}
 
-      {/* Drafts en attente */}
+      {/* Drafts avec filtre par statut */}
       <section>
         <PageHeader
-          title="Drafts en attente"
+          title="Drafts"
           subtitle={
-            loadingPending
+            loadingDrafts
               ? 'Chargement…'
-              : `${pendingDrafts.length} draft${pendingDrafts.length > 1 ? 's' : ''} à approuver`
+              : `${displayedDrafts.length} draft${displayedDrafts.length > 1 ? 's' : ''}${
+                  draftFilter === 'all' ? ' au total' : ''
+                }`
           }
         />
-        {pendingDrafts.length === 0 && !loadingPending && (
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          {DRAFT_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setDraftFilter(f.key)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
+                draftFilter === f.key
+                  ? 'border-border-violet bg-accent-violet-soft text-accent-violet'
+                  : 'border-border-subtle bg-bg-surface text-text-secondary hover:border-border-strong hover:text-text-primary',
+              )}
+            >
+              {f.label}
+              <span className="rounded-md bg-bg-elevated px-1.5 py-0.5 text-[11px] font-semibold">
+                {draftCounts[f.key]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {displayedDrafts.length === 0 && !loadingDrafts && (
           <div className="card p-8 text-center text-text-tertiary">
-            Aucun draft en attente. Lance la machine pour générer 2 nouveaux posts (FB + IG).
+            {draftFilter === 'pending'
+              ? 'Aucun draft en attente. Lance la machine pour générer 2 nouveaux posts (FB + IG).'
+              : 'Aucun draft avec ce statut.'}
           </div>
         )}
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {pendingDrafts.map((d) => (
+          {displayedDrafts.map((d) => (
             <DraftCard
               key={d.id}
               draft={d}
               loading={deciding === d.id}
-              onApprove={() => handleDecide(d.id, 'approved')}
-              onReject={() => handleDecide(d.id, 'rejected')}
-              onEdit={() => setEditingDraft(d)}
+              readonly={d.status !== 'pending'}
+              onApprove={d.status === 'pending' ? () => handleDecide(d.id, 'approved') : undefined}
+              onReject={d.status === 'pending' ? () => handleDecide(d.id, 'rejected') : undefined}
+              onEdit={d.status === 'pending' ? () => setEditingDraft(d) : undefined}
             />
           ))}
         </div>
       </section>
 
       <RunsHistory runs={runs} loading={loadingRuns} />
-
-      {/* Drafts décidés (récents) */}
-      {recentDecidedDrafts.length > 0 && (
-        <section>
-          <PageHeader
-            title="Drafts décidés"
-            subtitle={`${recentDecidedDrafts.length} récents`}
-          />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {recentDecidedDrafts.map((d) => (
-              <DraftCard key={d.id} draft={d} readonly />
-            ))}
-          </div>
-        </section>
-      )}
 
       {editingDraft && user && (
         <EditDraftModal
@@ -217,7 +286,7 @@ export function MachineDetail() {
           onClose={() => setEditingDraft(null)}
           onSaved={async () => {
             setEditingDraft(null);
-            await Promise.all([refetchPending(), refetchDecided()]);
+            await refetchDrafts();
           }}
         />
       )}
@@ -253,6 +322,15 @@ function DraftCard({
         </div>
         <div className="flex items-center gap-2">
           <DraftStatusBadge status={draft.status} />
+          <button
+            type="button"
+            onClick={() => exportDraft(draft)}
+            className="rounded-md p-1.5 text-text-tertiary hover:bg-bg-surface2 hover:text-text-primary"
+            aria-label="Exporter"
+            title="Télécharger l'image (.jpg) + le texte (.txt) dans Téléchargements"
+          >
+            <Download size={13} />
+          </button>
           {!readonly && draft.status === 'pending' && onEdit && (
             <button
               type="button"
