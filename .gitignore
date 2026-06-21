@@ -39,3 +39,7 @@ scratch/
 
 # Supabase CLI temp cache
 supabase/.temp/
+
+# Centralized secrets file (NEVER commit)
+secrets/secrets.txt
+secrets/*.env
