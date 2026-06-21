@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Layout } from '@/components/layout/Layout';
 import { Dashboard } from '@/pages/Dashboard';
 import { Agents } from '@/pages/Agents';
+import { AgentChat } from '@/pages/AgentChat';
 import { Machines } from '@/pages/Machines';
 import { MachineDetail } from '@/pages/MachineDetail';
 import { Coliver } from '@/pages/Coliver';
@@ -12,6 +13,7 @@ import { Analytics } from '@/pages/Analytics';
 import { Settings } from '@/pages/Settings';
 import { Admin } from '@/pages/Admin';
 import { Visuels } from '@/pages/Visuels';
+import { Knowledge } from '@/pages/Knowledge';
 import { Login } from '@/pages/Login';
 import { ChangePin } from '@/pages/ChangePin';
 
@@ -29,6 +31,7 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/agents" element={<Agents />} />
+                  <Route path="/agents/:code" element={<AgentChat />} />
                   <Route path="/machines" element={<Machines />} />
                   <Route path="/machines/:code" element={<MachineDetail />} />
                   <Route path="/coliver" element={<Coliver />} />
@@ -40,6 +43,14 @@ export default function App() {
                     element={
                       <ProtectedRoute requireRole={['superadmin', 'admin']}>
                         <Visuels />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/knowledge"
+                    element={
+                      <ProtectedRoute requireRole={['superadmin', 'admin']}>
+                        <Knowledge />
                       </ProtectedRoute>
                     }
                   />

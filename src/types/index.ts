@@ -120,6 +120,37 @@ export interface PostDraft {
   createdAt: Date;
 }
 
+export interface KnowledgeDoc {
+  id: string;
+  filename: string;
+  storagePath: string;
+  mime: string;
+  sizeBytes: number;
+  summary: string | null;
+  charCount: number;
+  uploadedAt: Date;
+}
+
+export interface AgentConversation {
+  id: string;
+  agentCode: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type AgentMessageRole = 'user' | 'assistant' | 'tool';
+
+export interface AgentMessage {
+  id: string;
+  role: AgentMessageRole;
+  content: string;
+  toolCalls?: unknown;
+  toolResults?: unknown;
+  metadata?: { model?: string; usage?: { input_tokens?: number; output_tokens?: number } };
+  createdAt: Date;
+}
+
 export type ProspectSource = 'email' | 'lodgify' | 'form' | 'whatsapp' | 'phone' | 'other';
 export type ProspectStatus = 'new' | 'replied' | 'ignored';
 

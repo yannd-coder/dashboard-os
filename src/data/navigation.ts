@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookOpen,
   Bot,
   Images,
   LayoutDashboard,
@@ -20,5 +21,6 @@ export const navItems: NavItem[] = [
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Visuels', href: '/visuels', icon: Images, roles: ['superadmin', 'admin'] },
+  { label: 'Knowledge', href: '/knowledge', icon: BookOpen, roles: ['superadmin', 'admin'] },
   { label: 'Admin', href: '/admin', icon: ShieldCheck, roles: ['superadmin'] },
 ];

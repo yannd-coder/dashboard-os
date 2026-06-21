@@ -16,6 +16,10 @@ import type {
   ResponseDraft,
   ResponseDraftStatus,
   Status,
+  AgentConversation,
+  AgentMessage,
+  AgentMessageRole,
+  KnowledgeDoc,
 } from '@/types';
 
 type DashboardAgentRow = {
@@ -468,5 +472,204 @@ export async function rpcDeleteCampaignPhoto(
     p_photo_id: photoId,
   });
   if (error) throw error;
+  return Boolean(data);
+}
+
+// ============================================================================
+// Agent Chat (V0.8 étape 1)
+// ============================================================================
+
+type DashboardAgentConversationRow = {
+  id: string;
+  agent_code: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type DashboardAgentMessageRow = {
+  id: string;
+  role: AgentMessageRole;
+  content: string | null;
+  tool_calls: unknown | null;
+  tool_results: unknown | null;
+  metadata: AgentMessage['metadata'] | null;
+  created_at: string;
+};
+
+function mapConversation(r: DashboardAgentConversationRow): AgentConversation {
+  return {
+    id: r.id,
+    agentCode: r.agent_code,
+    title: r.title,
+    createdAt: new Date(r.created_at),
+    updatedAt: new Date(r.updated_at),
+  };
+}
+
+function mapMessage(r: DashboardAgentMessageRow): AgentMessage {
+  return {
+    id: r.id,
+    role: r.role,
+    content: r.content ?? '',
+    toolCalls: r.tool_calls ?? undefined,
+    toolResults: r.tool_results ?? undefined,
+    metadata: r.metadata ?? undefined,
+    createdAt: new Date(r.created_at),
+  };
+}
+
+export async function rpcCreateAgentConversation(
+  agentCode: string,
+  userId: string,
+  title = 'Nouvelle conversation',
+): Promise<string> {
+  const { data, error } = await supabase.rpc('dashboard_create_agent_conversation', {
+    p_agent_code: agentCode,
+    p_user_id: userId,
+    p_title: title,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function rpcListAgentConversations(
+  userId: string,
+  agentCode?: string,
+  limit = 50,
+): Promise<AgentConversation[]> {
+  const { data, error } = await supabase.rpc('dashboard_list_agent_conversations', {
+    p_user_id: userId,
+    p_agent_code: agentCode ?? null,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data ?? []).map(mapConversation);
+}
+
+export async function rpcGetAgentMessages(conversationId: string): Promise<AgentMessage[]> {
+  const { data, error } = await supabase.rpc('dashboard_get_agent_messages', {
+    p_conversation_id: conversationId,
+  });
+  if (error) throw error;
+  return (data ?? []).map(mapMessage);
+}
+
+export async function rpcRenameAgentConversation(
+  conversationId: string,
+  title: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_rename_agent_conversation', {
+    p_conversation_id: conversationId,
+    p_title: title,
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function rpcArchiveAgentConversation(conversationId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_archive_agent_conversation', {
+    p_conversation_id: conversationId,
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+// ============================================================================
+// Knowledge docs (V0.8 étape 3)
+// ============================================================================
+
+type DashboardKnowledgeDocRow = {
+  id: string;
+  filename: string;
+  storage_path: string;
+  mime: string;
+  size_bytes: number;
+  summary: string | null;
+  char_count: number;
+  uploaded_at: string;
+};
+
+function mapKnowledgeDoc(r: DashboardKnowledgeDocRow): KnowledgeDoc {
+  return {
+    id: r.id,
+    filename: r.filename,
+    storagePath: r.storage_path,
+    mime: r.mime,
+    sizeBytes: r.size_bytes,
+    summary: r.summary,
+    charCount: r.char_count,
+    uploadedAt: new Date(r.uploaded_at),
+  };
+}
+
+export async function fetchKnowledgeDocs(): Promise<KnowledgeDoc[]> {
+  const { data, error } = await supabase
+    .from('dashboard_knowledge_docs')
+    .select('id, filename, storage_path, mime, size_bytes, summary, char_count, uploaded_at')
+    .order('uploaded_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? []).map((row) => mapKnowledgeDoc(row as DashboardKnowledgeDocRow));
+}
+
+export async function uploadKnowledgeDoc(
+  userId: string,
+  file: File,
+): Promise<{ docId: string; summary: string; charCount: number }> {
+  const ext = file.name.includes('.') ? file.name.split('.').pop() : '';
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storagePath = `${Date.now()}-${safeName}`;
+
+  // 1. Upload vers Storage
+  const { error: upErr } = await supabase.storage
+    .from('knowledge-docs')
+    .upload(storagePath, file, {
+      contentType: file.type,
+      cacheControl: '3600',
+      upsert: false,
+    });
+  if (upErr) throw upErr;
+
+  // 2. Appeler l'edge function ingest-knowledge
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-knowledge`;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      apikey: anonKey,
+      authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({
+      storagePath,
+      filename: file.name,
+      mime: file.type || (ext ? `application/${ext}` : 'application/octet-stream'),
+      sizeBytes: file.size,
+      userId,
+    }),
+  });
+
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok || !json.success) {
+    // Cleanup storage si l'ingestion a échoué
+    await supabase.storage.from('knowledge-docs').remove([storagePath]).catch(() => undefined);
+    throw new Error(json.error ? `${json.error}${json.detail ? ` — ${json.detail}` : ''}` : `HTTP ${resp.status}`);
+  }
+  return { docId: json.docId, summary: json.summary, charCount: json.charCount };
+}
+
+export async function rpcDeleteKnowledgeDoc(
+  userId: string,
+  docId: string,
+  storagePath: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('dashboard_delete_knowledge_doc', {
+    p_doc_id: docId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  // Cleanup storage (non bloquant)
+  await supabase.storage.from('knowledge-docs').remove([storagePath]).catch(() => undefined);
   return Boolean(data);
 }

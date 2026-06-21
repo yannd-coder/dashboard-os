@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
 import { IconSquare } from '@/components/ui/IconSquare';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { Agent } from '@/types';
@@ -5,7 +7,10 @@ import { formatRelativeTime } from '@/lib/utils';
 
 export function AgentCard({ agent }: { agent: Agent }) {
   return (
-    <div className="card card-hover group relative overflow-hidden p-5">
+    <Link
+      to={`/agents/${agent.code}`}
+      className="card card-hover group relative block overflow-hidden p-5 transition-transform hover:scale-[1.01]"
+    >
       <div className="flex items-start gap-4">
         <IconSquare icon={agent.icon} gradient={agent.gradient} size="lg" />
         <div className="min-w-0 flex-1">
@@ -61,6 +66,11 @@ export function AgentCard({ agent }: { agent: Agent }) {
           Dernier run · {formatRelativeTime(agent.lastRun)}
         </div>
       )}
-    </div>
+
+      <div className="mt-4 flex items-center justify-end gap-1.5 text-xs font-medium text-accent-violet opacity-70 transition-opacity group-hover:opacity-100">
+        <MessageSquare size={12} />
+        Parler à {agent.name}
+      </div>
+    </Link>
   );
 }

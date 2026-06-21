@@ -36,3 +36,6 @@ scratch/
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI temp cache
+supabase/.temp/
