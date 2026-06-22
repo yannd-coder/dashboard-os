@@ -413,47 +413,46 @@ function EditDraftModal({
 
   const accrocheDirty = (draft.visualAccroche ?? '') !== accroche.trim();
   const contentDirty = draft.content !== content;
+  const needsRegen = accrocheDirty && accroche.trim().length > 0;
+  const dirty = contentDirty || accrocheDirty;
 
-  async function saveText() {
-    setErr(null);
-    setInfo(null);
-    setSavingText(true);
-    try {
-      await rpcUpdateDraft(draft.id, userId, {
-        content: contentDirty ? content : undefined,
-        visualAccroche: accrocheDirty ? accroche : undefined,
-      });
-      setInfo('Modifications enregistrées.');
-      await onSaved();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erreur d\'enregistrement');
-    } finally {
-      setSavingText(false);
-    }
-  }
-
-  async function regenVisual() {
-    if (!accroche.trim()) {
+  async function saveAll() {
+    if (!accroche.trim() && accrocheDirty) {
       setErr("L'accroche ne peut pas être vide.");
       return;
     }
     setErr(null);
     setInfo(null);
-    setRegen(true);
+    setSavingText(true);
     try {
-      const res = await rerenderDraftVisual({
-        draftId: draft.id,
-        userId,
-        newAccroche: accroche.trim(),
-      });
-      if (res.image_url) {
-        setPreviewUrl(res.image_url);
-        setInfo('Visuel regénéré.');
+      // 1. Sauve les champs texte (content + accroche) si modifiés
+      if (contentDirty || accrocheDirty) {
+        await rpcUpdateDraft(draft.id, userId, {
+          content: contentDirty ? content : undefined,
+          visualAccroche: accrocheDirty ? accroche : undefined,
+        });
       }
+
+      // 2. Si l'accroche a changé, regénère le visuel en chaîne
+      if (needsRegen) {
+        setRegen(true);
+        const res = await rerenderDraftVisual({
+          draftId: draft.id,
+          userId,
+          newAccroche: accroche.trim(),
+        });
+        if (res.image_url) {
+          // Cache-bust pour forcer le browser à reload la nouvelle image
+          setPreviewUrl(res.image_url + (res.image_url.includes('?') ? '&' : '?') + 'v=' + Date.now());
+        }
+      }
+
+      setInfo(needsRegen ? 'Modifications enregistrées + visuel régénéré.' : 'Modifications enregistrées.');
       await onSaved();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Erreur lors de la regénération');
+      setErr(e instanceof Error ? e.message : "Erreur d'enregistrement");
     } finally {
+      setSavingText(false);
       setRegen(false);
     }
   }
@@ -528,22 +527,14 @@ function EditDraftModal({
                 <span>3-6 mots · retours ligne pour empiler</span>
                 <span>{accroche.length} caractères</span>
               </div>
-              <Button
-                variant="primary"
-                size="sm"
-                className="mt-2 w-full"
-                icon={
-                  regen ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <RefreshCw size={14} />
-                  )
-                }
-                onClick={regenVisual}
-                disabled={regen || savingText || !accrocheDirty}
-              >
-                {regen ? 'Regénération…' : 'Regénérer le visuel'}
-              </Button>
+              {accrocheDirty && (
+                <div className="mt-2 flex items-start gap-1.5 text-[11px] text-accent-violet">
+                  <RefreshCw size={11} className="mt-0.5 shrink-0" />
+                  <span>
+                    L'accroche a changé — le visuel sera <strong>regénéré</strong> automatiquement à l'enregistrement.
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
@@ -584,10 +575,16 @@ function EditDraftModal({
           <Button
             variant="primary"
             size="sm"
-            onClick={saveText}
-            disabled={savingText || regen || (!contentDirty && !accrocheDirty)}
+            onClick={saveAll}
+            disabled={savingText || regen || !dirty}
           >
-            {savingText ? 'Enregistrement…' : 'Enregistrer le texte'}
+            {regen
+              ? 'Régénération du visuel…'
+              : savingText
+              ? 'Enregistrement…'
+              : needsRegen
+              ? 'Enregistrer + régénérer le visuel'
+              : 'Enregistrer'}
           </Button>
         </div>
       </div>
