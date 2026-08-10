@@ -22,7 +22,13 @@ services:
   browserless:
     image: ghcr.io/browserless/chromium:latest
     container_name: dashboard-browserless
-    restart: unless-stopped
+    # on-failure:3 plutôt que unless-stopped : évite la boucle infinie de restarts
+    # si Chromium OOM en chaîne (cause probable du crash VPS du 2026-06-19)
+    restart: on-failure:3
+    # Plafond mémoire : c'est le container qui est OOM-killé par Docker
+    # (récupérable) au lieu de prendre tout le VPS 4 GB en otage
+    mem_limit: 800m
+    memswap_limit: 800m
     networks:
       - dashboard-net
     ports:
@@ -31,7 +37,7 @@ services:
       # Token requis par browserless v2. Fallback hardcodé OK car écoute seulement 127.0.0.1.
       TOKEN: ${BROWSERLESS_TOKEN:-yannos-browserless-local-only}
       # Protection mémoire (VPS Hostinger ~4 GB)
-      MAX_CONCURRENT_SESSIONS: "2"
+      MAX_CONCURRENT_SESSIONS: "1"
       MAX_QUEUE_LENGTH: "5"
       TIMEOUT: "30000"
       # Args Chromium nécessaires en container
