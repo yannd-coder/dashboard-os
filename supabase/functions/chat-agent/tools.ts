@@ -146,6 +146,58 @@ export const TOOL_DEFINITIONS: AnthropicTool[] = [
     },
   },
   {
+    name: 'create_coworking_post_pair',
+    description:
+      "Crée une PAIRE de drafts COWORKING (1 Facebook Coworking + 1 Instagram @coworkingtropical_coliver) à partir de textes que TU as rédigés. La paire est rattachée à la machine M01 (Posts Coliver Coworking). Visuel auto-généré avec photo aléatoire (rotation des moins utilisées). Use ce tool pour tout post centré sur le COWORKING : digital nomads, work&chill, freelances, productivité tropicale, fibre, espaces de travail, événements pro (CoworkDay, French Tech apéros), portraits coworkers. Le CTA 'Réserve ton PASS → URL' DOIT être en début de chaque texte. Appelle ce tool N fois pour N paires.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        content_fb: {
+          type: 'string',
+          description:
+            "Texte du post Facebook (5 lignes max, 600 chars). DOIT commencer par 'Réserve ton PASS → https://coliver-coworking-book.makeitapp.fr' + ligne vide + contenu. Ton ami, PAS de hashtags.",
+        },
+        content_ig: {
+          type: 'string',
+          description:
+            "Texte du post Instagram (4-6 lignes, emoji bienvenu). DOIT commencer par 'Réserve ton PASS → https://coliver-coworking-book.makeitapp.fr' + ligne vide + contenu + hashtags pertinents en fin (mix #CoworkingReunion #DigitalNomad974 #LaRéunion etc.).",
+        },
+        accroche_visuel: {
+          type: 'string',
+          description:
+            "3-6 mots affichés en gros sur le visuel. Style poétique/aspirationnel coworking. 1 à 3 lignes séparées par \\n (ex: 'Bosser le matin\\nSurfer le soir'). Pas de ponctuation finale.",
+        },
+      },
+      required: ['content_fb', 'content_ig', 'accroche_visuel'],
+    },
+  },
+  {
+    name: 'create_coliving_post_pair',
+    description:
+      "Crée une PAIRE de drafts COLIVING (1 Facebook coliver974 + 1 Instagram @villacoliver_colivingtropical) à partir de textes que TU as rédigés. La paire est rattachée à la machine M06 (Posts Coliver Coliving). Visuel auto-généré avec photo aléatoire (rotation des moins utilisées). Use ce tool pour tout post centré sur le COLIVING : vie de communauté, dîners partagés, slow life, lifestyle maison/villa, chambres, kiosque, hammam/piscine/sauna, portraits colivers, rituels, BBQ, ambiance familiale, vie en colocation. Le CTA 'Réserve ton PASS → URL' DOIT être en début de chaque texte. Appelle ce tool N fois pour N paires.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        content_fb: {
+          type: 'string',
+          description:
+            "Texte du post Facebook (5 lignes max, 600 chars). DOIT commencer par 'Réserve ton PASS → https://coliver-coworking-book.makeitapp.fr' + ligne vide + contenu. Ton ami, PAS de hashtags.",
+        },
+        content_ig: {
+          type: 'string',
+          description:
+            "Texte du post Instagram (4-6 lignes, emoji bienvenu). DOIT commencer par 'Réserve ton PASS → https://coliver-coworking-book.makeitapp.fr' + ligne vide + contenu + hashtags pertinents en fin (mix #ColivingReunion #SlowLife974 #LaRéunion #Coliver974 etc.).",
+        },
+        accroche_visuel: {
+          type: 'string',
+          description:
+            "3-6 mots affichés en gros sur le visuel. Style poétique/aspirationnel coliving. 1 à 3 lignes séparées par \\n (ex: 'On cuisine ensemble\\non vit ensemble'). Pas de ponctuation finale.",
+        },
+      },
+      required: ['content_fb', 'content_ig', 'accroche_visuel'],
+    },
+  },
+  {
     name: 'trigger_machine',
     description:
       "Déclenche un run d'une machine (M01 = génère 1 post FB + 1 post IG, M02 = vérifie les nouveaux prospects). À utiliser quand Yann dit explicitement 'lance M01' / 'fais tourner la machine' / 'génère un nouveau post'. Demander confirmation si la demande est ambiguë.",
@@ -312,6 +364,20 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
     };
   },
 
+  async create_coworking_post_pair(input, ctx) {
+    return await createPostPairForBrand('coworking', input, ctx);
+  },
+
+  async create_coliving_post_pair(input, ctx) {
+    return await createPostPairForBrand('coliving', input, ctx);
+  },
+
+  async create_post_pair(input, ctx) {
+    // Legacy alias — au cas où ARIA appellerait encore l'ancien nom
+    const brand = input.instagram_account === 'coliving' ? 'coliving' : 'coworking';
+    return await createPostPairForBrand(brand, input, ctx);
+  },
+
   async trigger_machine(input, ctx) {
     const code = String(input.machine_code ?? '').toUpperCase();
     if (!code) throw new Error('machine_code requis');
@@ -355,3 +421,171 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
     }
   },
 };
+
+// ============================================================================
+// Helper privé : core de create_{coworking,coliving}_post_pair
+// ============================================================================
+async function createPostPairForBrand(
+  brand: 'coworking' | 'coliving',
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<unknown> {
+  const content_fb = String(input.content_fb ?? '').trim();
+  const content_ig = String(input.content_ig ?? '').trim();
+  const accroche = String(input.accroche_visuel ?? '').trim();
+  const machineCode = brand === 'coliving' ? 'M06' : 'M01';
+
+  if (!content_fb || !content_ig || !accroche) {
+    throw new Error('content_fb, content_ig et accroche_visuel sont obligatoires');
+  }
+  if (!ctx.n8nWebhookUrl || !ctx.n8nWebhookSecret) {
+    return {
+      success: false,
+      error: 'Webhook n8n non configuré côté edge function (secrets N8N_WEBHOOK_URL et N8N_WEBHOOK_SECRET requis).',
+    };
+  }
+
+  // 0. Targets FB + IG de la brand
+  type Target = { id: string; platform: string; brand: string; handle: string | null };
+  const targets = await sbSelect<Target>(
+    ctx,
+    'dashboard_publish_targets',
+    `select=id,platform,brand,handle&brand=eq.${brand}&is_active=eq.true`,
+  );
+  const fbTarget = targets.find((t) => t.platform === 'facebook');
+  const igTarget = targets.find((t) => t.platform === 'instagram');
+  if (!fbTarget || !igTarget) {
+    return { success: false, error: `Targets manquants pour brand=${brand} (FB ou IG)` };
+  }
+
+  // 1. Photo la moins utilisée pour cette brand (filtre via tags : 'coworking'|'coliving'|sans tag)
+  type Photo = { id: string; public_url: string; storage_path: string; usage_count: number };
+  const photos = await sb<Photo[]>(ctx, 'dashboard_pick_least_used_photo', { p_brand: brand });
+  if (!photos.length) {
+    return {
+      success: false,
+      error: `Aucune photo dispo pour brand="${brand}" dans la bibliothèque /visuels (vérifie les tags des photos : seules celles taguées "${brand}" ou sans tag sont éligibles)`,
+    };
+  }
+  const photo = photos[0];
+
+  // 2. Machine run
+  const runId = await sb<string>(ctx, 'dashboard_create_machine_run', {
+    p_machine_code: machineCode,
+    p_trigger_source: 'manual',
+    p_user_id: ctx.userId,
+  });
+
+  try {
+    // 3. Insert 2 drafts (visuel sera généré par Rerender)
+    const fbDraftId = await sb<string>(ctx, 'dashboard_add_draft', {
+      p_run_id: runId,
+      p_machine_code: machineCode,
+      p_network: 'facebook',
+      p_account_handle: fbTarget.handle ?? '',
+      p_content: content_fb,
+      p_image_urls: null,
+      p_visual_accroche: accroche,
+      p_visual_photo_url: photo.public_url,
+      p_target_id: fbTarget.id,
+    });
+    const igDraftId = await sb<string>(ctx, 'dashboard_add_draft', {
+      p_run_id: runId,
+      p_machine_code: machineCode,
+      p_network: 'instagram',
+      p_account_handle: igTarget.handle ?? '',
+      p_content: content_ig,
+      p_image_urls: null,
+      p_visual_accroche: accroche,
+      p_visual_photo_url: photo.public_url,
+      p_target_id: igTarget.id,
+    });
+
+    // 3.5. PNG placeholder (Storage refuse PUT sur path inexistant)
+    const TINY_PNG = new Uint8Array([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+      0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41,
+      0x54, 0x78, 0x9C, 0x62, 0x00, 0x01, 0x00, 0x00,
+      0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+      0x42, 0x60, 0x82,
+    ]);
+    const createPlaceholder = async (suffix: string) => {
+      const url = `${ctx.supabaseUrl}/storage/v1/object/campaign-photos/generated/${runId}-${suffix}.png`;
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          apikey: ctx.supabaseKey,
+          authorization: `Bearer ${ctx.supabaseKey}`,
+          'content-type': 'image/png',
+        },
+        body: TINY_PNG,
+      }).catch(() => undefined);
+    };
+    await Promise.all([createPlaceholder('fb'), createPlaceholder('ig')]);
+
+    // 4. Rerender Visual en parallèle
+    const rerenderUrl = ctx.n8nWebhookUrl.replace(/[^/]+$/, 'm01-rerender-visual');
+    const triggerRerender = async (draftId: string) => {
+      const r = await fetch(rerenderUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-webhook-secret': ctx.n8nWebhookSecret!,
+        },
+        body: JSON.stringify({
+          draft_id: draftId,
+          user_id: ctx.userId,
+          new_accroche: accroche,
+        }),
+        signal: AbortSignal.timeout(45000),
+      });
+      if (!r.ok) throw new Error(`Rerender ${draftId.slice(0, 8)} → ${r.status}`);
+      return await r.json().catch(() => ({}));
+    };
+
+    const [fbRes, igRes] = await Promise.allSettled([
+      triggerRerender(fbDraftId),
+      triggerRerender(igDraftId),
+    ]);
+
+    const fbVisualOK = fbRes.status === 'fulfilled';
+    const igVisualOK = igRes.status === 'fulfilled';
+
+    console.log(`[create_${brand}_post_pair] rerender FB:`, JSON.stringify(fbRes));
+    console.log(`[create_${brand}_post_pair] rerender IG:`, JSON.stringify(igRes));
+
+    // 5. Complete run
+    await sb(ctx, 'dashboard_complete_machine_run', {
+      p_run_id: runId,
+      p_status: 'success',
+      p_summary: `2 drafts ${brand} générés (FB + IG) via ARIA${!fbVisualOK || !igVisualOK ? ' — visuel partiel' : ''}`,
+      p_error: null,
+    });
+
+    return {
+      success: true,
+      brand,
+      machine_code: machineCode,
+      run_id: runId,
+      fb_draft_id: fbDraftId,
+      ig_draft_id: igDraftId,
+      photo_used: photo.public_url,
+      photo_usage_count_before: photo.usage_count,
+      visual_fb_ok: fbVisualOK,
+      visual_ig_ok: igVisualOK,
+      message: `Paire ${brand} créée. Photo utilisée : ${photo.usage_count === 0 ? 'jamais vue' : `vue ${photo.usage_count}× avant`}.${!fbVisualOK || !igVisualOK ? ' ⚠️ Un visuel a foiré — clique "Regénérer le visuel" sur le draft concerné.' : ''}`,
+    };
+  } catch (e) {
+    await sb(ctx, 'dashboard_complete_machine_run', {
+      p_run_id: runId,
+      p_status: 'error',
+      p_summary: null,
+      p_error: String(e),
+    }).catch(() => undefined);
+    throw e;
+  }
+}
