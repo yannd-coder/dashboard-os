@@ -99,8 +99,19 @@ export type DraftStatus = 'pending' | 'approved' | 'rejected' | 'published';
 
 export interface PostDraftImageUrls {
   square?: string;
+  portrait?: string;
   story?: string;
   banner?: string;
+}
+
+/** Réglages de génération d'une machine (table dashboard_machine_settings) */
+export interface MachineSettings {
+  pairs_per_run: number;
+  fontscale: number;
+  theme_mode: 'auto' | 'fixed';
+  theme_fixed: string;
+  tone: string;
+  extra_instructions: string;
 }
 
 export interface PostDraft {

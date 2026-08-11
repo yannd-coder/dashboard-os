@@ -501,35 +501,12 @@ async function createPostPairForBrand(
       p_target_id: igTarget.id,
     });
 
-    // 3.5. PNG placeholder (Storage refuse PUT sur path inexistant)
-    const TINY_PNG = new Uint8Array([
-      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
-      0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41,
-      0x54, 0x78, 0x9C, 0x62, 0x00, 0x01, 0x00, 0x00,
-      0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
-      0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
-      0x42, 0x60, 0x82,
-    ]);
-    const createPlaceholder = async (suffix: string) => {
-      const url = `${ctx.supabaseUrl}/storage/v1/object/campaign-photos/generated/${runId}-${suffix}.png`;
-      await fetch(url, {
-        method: 'POST',
-        headers: {
-          apikey: ctx.supabaseKey,
-          authorization: `Bearer ${ctx.supabaseKey}`,
-          'content-type': 'image/png',
-        },
-        body: TINY_PNG,
-      }).catch(() => undefined);
-    };
-    await Promise.all([createPlaceholder('fb'), createPlaceholder('ig')]);
-
-    // 4. Rerender Visual en parallèle
+    // 4. Rerender v2 : UN appel pour la paire — rend le carré (FB) + le portrait 4:5 (IG)
+    //    avec la même accroche, et met à jour les image_urls des DEUX drafts.
     const rerenderUrl = ctx.n8nWebhookUrl.replace(/[^/]+$/, 'm01-rerender-visual');
-    const triggerRerender = async (draftId: string) => {
+    let visualOK = false;
+    let rerenderResult: unknown = null;
+    try {
       const r = await fetch(rerenderUrl, {
         method: 'POST',
         headers: {
@@ -537,32 +514,25 @@ async function createPostPairForBrand(
           'x-webhook-secret': ctx.n8nWebhookSecret!,
         },
         body: JSON.stringify({
-          draft_id: draftId,
+          draft_id: fbDraftId,
           user_id: ctx.userId,
           new_accroche: accroche,
         }),
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(90000),
       });
-      if (!r.ok) throw new Error(`Rerender ${draftId.slice(0, 8)} → ${r.status}`);
-      return await r.json().catch(() => ({}));
-    };
-
-    const [fbRes, igRes] = await Promise.allSettled([
-      triggerRerender(fbDraftId),
-      triggerRerender(igDraftId),
-    ]);
-
-    const fbVisualOK = fbRes.status === 'fulfilled';
-    const igVisualOK = igRes.status === 'fulfilled';
-
-    console.log(`[create_${brand}_post_pair] rerender FB:`, JSON.stringify(fbRes));
-    console.log(`[create_${brand}_post_pair] rerender IG:`, JSON.stringify(igRes));
+      if (!r.ok) throw new Error(`Rerender paire → ${r.status}`);
+      rerenderResult = await r.json().catch(() => ({}));
+      visualOK = true;
+    } catch (e) {
+      console.log(`[create_${brand}_post_pair] rerender paire KO:`, String(e));
+    }
+    console.log(`[create_${brand}_post_pair] rerender:`, JSON.stringify(rerenderResult));
 
     // 5. Complete run
     await sb(ctx, 'dashboard_complete_machine_run', {
       p_run_id: runId,
       p_status: 'success',
-      p_summary: `2 drafts ${brand} générés (FB + IG) via ARIA${!fbVisualOK || !igVisualOK ? ' — visuel partiel' : ''}`,
+      p_summary: `2 drafts ${brand} générés (FB + IG, créa unique 2 formats) via ARIA${!visualOK ? ' — visuels en échec' : ''}`,
       p_error: null,
     });
 
@@ -575,9 +545,8 @@ async function createPostPairForBrand(
       ig_draft_id: igDraftId,
       photo_used: photo.public_url,
       photo_usage_count_before: photo.usage_count,
-      visual_fb_ok: fbVisualOK,
-      visual_ig_ok: igVisualOK,
-      message: `Paire ${brand} créée. Photo utilisée : ${photo.usage_count === 0 ? 'jamais vue' : `vue ${photo.usage_count}× avant`}.${!fbVisualOK || !igVisualOK ? ' ⚠️ Un visuel a foiré — clique "Regénérer le visuel" sur le draft concerné.' : ''}`,
+      visuals_ok: visualOK,
+      message: `Paire ${brand} créée (visuel commun : carré FB + portrait IG). Photo utilisée : ${photo.usage_count === 0 ? 'jamais vue' : `vue ${photo.usage_count}× avant`}.${!visualOK ? ' ⚠️ Les visuels ont échoué — clique "Regénérer le visuel" sur un des drafts de la paire.' : ''}`,
     };
   } catch (e) {
     await sb(ctx, 'dashboard_complete_machine_run', {

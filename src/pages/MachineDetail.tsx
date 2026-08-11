@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   Download,
   Facebook,
   Instagram,
@@ -10,6 +11,7 @@ import {
   Pencil,
   Play,
   RefreshCw,
+  Settings2,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -21,9 +23,14 @@ import { useMachineRuns } from '@/hooks/useMachineRuns';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useAuth } from '@/hooks/useAuth';
 import { isN8nConfigured, rerenderDraftVisual, triggerMachine } from '@/lib/n8n';
-import { rpcDecideDraft, rpcUpdateDraft } from '@/lib/api';
+import {
+  fetchMachineSettings,
+  rpcDecideDraft,
+  rpcUpdateDraft,
+  rpcUpdateMachineSettings,
+} from '@/lib/api';
 import { cn, formatRelativeTime } from '@/lib/utils';
-import type { DraftNetwork, DraftStatus, PostDraft } from '@/types';
+import type { DraftNetwork, DraftStatus, MachineSettings, PostDraft } from '@/types';
 
 type DraftFilter = 'all' | DraftStatus;
 
@@ -46,16 +53,25 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Visuel à afficher/exporter selon le réseau : IG → portrait 4:5 si dispo, sinon carré */
+function draftVisualUrl(draft: PostDraft): string | undefined {
+  if (draft.network === 'instagram') {
+    return draft.imageUrls?.portrait ?? draft.imageUrls?.square;
+  }
+  return draft.imageUrls?.square;
+}
+
 async function exportDraft(draft: PostDraft) {
   const networkShort = draft.network === 'facebook' ? 'FB' : 'IG';
   const dateStr = draft.createdAt.toISOString().slice(0, 10);
   const idShort = draft.id.slice(0, 8);
   const baseName = `coliver_${networkShort}_${dateStr}_${idShort}`;
 
-  // 1. Image (depuis Supabase Storage)
-  if (draft.imageUrls?.square) {
+  // 1. Image (depuis Supabase Storage) — format adapté au réseau
+  const visualUrl = draftVisualUrl(draft);
+  if (visualUrl) {
     try {
-      const res = await fetch(draft.imageUrls.square);
+      const res = await fetch(visualUrl);
       if (res.ok) {
         const blob = await res.blob();
         triggerBrowserDownload(blob, `${baseName}.jpg`);
@@ -220,6 +236,8 @@ export function MachineDetail() {
         </div>
       )}
 
+      {machineCode === 'M01' && <MachineSettingsPanel machineCode={machineCode} />}
+
       {/* Drafts avec filtre par statut */}
       <section>
         <PageHeader
@@ -257,7 +275,7 @@ export function MachineDetail() {
         {displayedDrafts.length === 0 && !loadingDrafts && (
           <div className="card p-8 text-center text-text-tertiary">
             {draftFilter === 'pending'
-              ? 'Aucun draft en attente. Lance la machine pour générer 2 nouveaux posts (FB + IG).'
+              ? 'Aucun draft en attente. Lance la machine pour générer de nouvelles créas (réglables ci-dessus).'
               : 'Aucun draft avec ce statut.'}
           </div>
         )}
@@ -289,6 +307,196 @@ export function MachineDetail() {
             await refetchDrafts();
           }}
         />
+      )}
+    </div>
+  );
+}
+
+const TONES = [
+  { value: 'ami', label: 'Ami (tutoiement chaleureux)' },
+  { value: 'inspirant', label: 'Inspirant (aspirationnel)' },
+  { value: 'factuel', label: 'Factuel (direct, informatif)' },
+  { value: 'humour', label: 'Humour (léger, complice)' },
+];
+
+function MachineSettingsPanel({ machineCode }: { machineCode: string }) {
+  const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState<MachineSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchMachineSettings(machineCode)
+      .then(setSettings)
+      .catch((e) => setErr(e instanceof Error ? e.message : 'Erreur de chargement des réglages'));
+  }, [machineCode]);
+
+  function patch(p: Partial<MachineSettings>) {
+    setSettings((s) => (s ? { ...s, ...p } : s));
+    setMsg(null);
+  }
+
+  async function save() {
+    if (!settings) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      await rpcUpdateMachineSettings(machineCode, settings);
+      setMsg('Réglages enregistrés — appliqués dès le prochain run (bouton ou cron).');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erreur d'enregistrement");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between p-4 text-left hover:bg-bg-base/40"
+      >
+        <div className="flex items-center gap-2">
+          <Settings2 size={16} className="text-accent-violet" />
+          <span className="text-sm font-semibold text-text-primary">Réglages de génération</span>
+          {settings && (
+            <span className="text-xs text-text-tertiary">
+              {settings.pairs_per_run} créa{settings.pairs_per_run > 1 ? 's' : ''}/run · police ×
+              {settings.fontscale} · ton {settings.tone}
+            </span>
+          )}
+        </div>
+        <ChevronDown size={16} className={cn('text-text-tertiary transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && settings && (
+        <div className="space-y-5 border-t border-border-subtle p-4">
+          <div className="grid gap-5 md:grid-cols-2">
+            {/* Nb de créas par run */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-secondary">
+                Créas générées par run (paires FB + IG)
+              </label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => patch({ pairs_per_run: n })}
+                    className={cn(
+                      'h-9 w-9 rounded-lg border text-sm font-semibold transition-colors',
+                      settings.pairs_per_run === n
+                        ? 'border-border-violet bg-accent-violet-soft text-accent-violet'
+                        : 'border-border-subtle bg-bg-surface2 text-text-secondary hover:border-border-strong',
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-text-tertiary">
+                Chaque créa = 1 visuel commun (carré FB + portrait IG) + 2 textes adaptés.
+              </p>
+            </div>
+
+            {/* Taille de police */}
+            <div>
+              <label className="mb-1 flex items-center justify-between text-xs font-medium text-text-secondary">
+                <span>Taille de l'accroche sur le visuel</span>
+                <span className="text-text-tertiary">×{settings.fontscale}</span>
+              </label>
+              <input
+                type="range"
+                min={0.7}
+                max={1.4}
+                step={0.05}
+                value={settings.fontscale}
+                onChange={(e) => patch({ fontscale: Number(e.target.value) })}
+                className="w-full accent-[#8b5cf6]"
+              />
+              <div className="flex justify-between text-[11px] text-text-tertiary">
+                <span>Discret</span>
+                <span>Normal</span>
+                <span>XXL</span>
+              </div>
+            </div>
+
+            {/* Ton */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-secondary">Ton des textes</label>
+              <select
+                value={settings.tone}
+                onChange={(e) => patch({ tone: e.target.value })}
+                className="w-full rounded-lg border border-border-subtle bg-bg-surface2 px-3 py-2 text-sm text-text-primary focus:border-border-violet focus:outline-none"
+              >
+                {TONES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Thème */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-secondary">Thème</label>
+              <div className="flex gap-2">
+                <select
+                  value={settings.theme_mode}
+                  onChange={(e) => patch({ theme_mode: e.target.value as MachineSettings['theme_mode'] })}
+                  className="rounded-lg border border-border-subtle bg-bg-surface2 px-3 py-2 text-sm text-text-primary focus:border-border-violet focus:outline-none"
+                >
+                  <option value="auto">Varié (auto)</option>
+                  <option value="fixed">Imposé</option>
+                </select>
+                {settings.theme_mode === 'fixed' && (
+                  <input
+                    type="text"
+                    value={settings.theme_fixed}
+                    onChange={(e) => patch({ theme_fixed: e.target.value })}
+                    placeholder="ex : la fibre + les visios face au jardin"
+                    className="flex-1 rounded-lg border border-border-subtle bg-bg-surface2 px-3 py-2 text-sm text-text-primary focus:border-border-violet focus:outline-none"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Consignes libres */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-secondary">
+              Consignes libres pour ARIA (optionnel)
+            </label>
+            <textarea
+              value={settings.extra_instructions}
+              onChange={(e) => patch({ extra_instructions: e.target.value })}
+              rows={2}
+              placeholder="ex : mentionne l'événement CoworkDay de vendredi ; évite le mot 'paradis'"
+              className="w-full resize-none rounded-lg border border-border-subtle bg-bg-surface2 px-3 py-2 text-sm text-text-primary focus:border-border-violet focus:outline-none"
+            />
+          </div>
+
+          {(msg || err) && (
+            <div
+              className={cn(
+                'rounded-lg border px-3 py-2 text-xs',
+                err
+                  ? 'border-accent-red/30 bg-accent-red/10 text-accent-red'
+                  : 'border-accent-green/30 bg-accent-green/10 text-accent-green',
+              )}
+            >
+              {err || msg}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button variant="primary" size="sm" onClick={save} disabled={saving}>
+              {saving ? 'Enregistrement…' : 'Enregistrer les réglages'}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -345,16 +553,33 @@ function DraftCard({
           )}
         </div>
       </div>
-      {draft.imageUrls?.square && (
-        <div className="aspect-square w-full overflow-hidden bg-bg-base">
-          <img
-            src={draft.imageUrls.square}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        </div>
-      )}
+      {(() => {
+        const url = draftVisualUrl(draft);
+        const isPortrait = draft.network === 'instagram' && Boolean(draft.imageUrls?.portrait);
+        if (url) {
+          return (
+            <div
+              className={cn(
+                'w-full overflow-hidden bg-bg-base',
+                isPortrait ? 'aspect-[4/5]' : 'aspect-square',
+              )}
+            >
+              <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </div>
+          );
+        }
+        if (draft.status === 'pending') {
+          return (
+            <div className="flex aspect-square w-full items-center justify-center bg-bg-base">
+              <div className="flex items-center gap-2 text-xs text-text-tertiary">
+                <Loader2 size={14} className="animate-spin" />
+                Visuel en cours de génération… (recharge la page dans quelques secondes)
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
       <div className="p-4">
         <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-text-secondary">
           {draft.content}
@@ -405,7 +630,8 @@ function EditDraftModal({
 }) {
   const [content, setContent] = useState(draft.content);
   const [accroche, setAccroche] = useState(draft.visualAccroche ?? '');
-  const [previewUrl, setPreviewUrl] = useState(draft.imageUrls?.square ?? '');
+  const [previewUrl, setPreviewUrl] = useState(draftVisualUrl(draft) ?? '');
+  const isPortrait = draft.network === 'instagram' && Boolean(draft.imageUrls?.portrait);
   const [savingText, setSavingText] = useState(false);
   const [regen, setRegen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -479,9 +705,14 @@ function EditDraftModal({
           {/* Preview visuel à gauche */}
           <div>
             <label className="mb-2 block text-xs font-medium text-text-secondary">
-              Aperçu visuel
+              Aperçu visuel · {isPortrait ? 'portrait 4:5 (Instagram)' : 'carré (Facebook)'}
             </label>
-            <div className="aspect-square w-full overflow-hidden rounded-lg border border-border-subtle bg-bg-base">
+            <div
+              className={cn(
+                'w-full overflow-hidden rounded-lg border border-border-subtle bg-bg-base',
+                isPortrait ? 'aspect-[4/5]' : 'aspect-square',
+              )}
+            >
               {previewUrl ? (
                 <img
                   src={previewUrl}
@@ -531,7 +762,8 @@ function EditDraftModal({
                 <div className="mt-2 flex items-start gap-1.5 text-[11px] text-accent-violet">
                   <RefreshCw size={11} className="mt-0.5 shrink-0" />
                   <span>
-                    L'accroche a changé — le visuel sera <strong>regénéré</strong> automatiquement à l'enregistrement.
+                    L'accroche a changé — les visuels de la <strong>paire FB + IG</strong> (carré +
+                    portrait) seront regénérés automatiquement à l'enregistrement.
                   </span>
                 </div>
               )}

@@ -99,7 +99,7 @@ type DashboardDraftRow = {
   network: DraftNetwork;
   account_handle: string;
   content: string;
-  image_urls: { square?: string; story?: string; banner?: string } | null;
+  image_urls: { square?: string; portrait?: string; story?: string; banner?: string } | null;
   visual_accroche: string | null;
   visual_photo_url: string | null;
   status: DraftStatus;
@@ -672,4 +672,38 @@ export async function rpcDeleteKnowledgeDoc(
   // Cleanup storage (non bloquant)
   await supabase.storage.from('knowledge-docs').remove([storagePath]).catch(() => undefined);
   return Boolean(data);
+}
+
+// ---------------------------------------------------------------------------
+// Réglages machine (dashboard_machine_settings) — Atelier 2
+// ---------------------------------------------------------------------------
+
+const DEFAULT_MACHINE_SETTINGS = {
+  pairs_per_run: 1,
+  fontscale: 1,
+  theme_mode: 'auto' as const,
+  theme_fixed: '',
+  tone: 'ami',
+  extra_instructions: '',
+};
+
+export async function fetchMachineSettings(machineCode: string): Promise<import('@/types').MachineSettings> {
+  const { data, error } = await supabase
+    .from('dashboard_machine_settings')
+    .select('settings')
+    .eq('machine_code', machineCode)
+    .maybeSingle();
+  if (error) throw error;
+  return { ...DEFAULT_MACHINE_SETTINGS, ...((data?.settings as object) ?? {}) };
+}
+
+export async function rpcUpdateMachineSettings(
+  machineCode: string,
+  settings: import('@/types').MachineSettings,
+): Promise<void> {
+  const { error } = await supabase.rpc('dashboard_update_machine_settings', {
+    p_machine_code: machineCode,
+    p_settings: settings,
+  });
+  if (error) throw error;
 }

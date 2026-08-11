@@ -2,7 +2,7 @@
   V0.6 — Template HTML pour la génération de visuels M01.
 
   Placeholders (à substituer côté n8n avant POST à browserless) :
-    {{FORMAT}}          → 'square' | 'story' | 'banner'
+    {{FORMAT}}          → 'square' | 'portrait' | 'story' | 'banner'
     {{PHOTO_URL}}       → URL publique Supabase Storage de la photo de fond
     {{ACCROCHE_HTML}}   → accroche (les "\n" doivent être convertis en "<br>" côté n8n)
     {{SUBTITLE_LINE1}}  → ex: "VILLA COLIVER"
@@ -12,8 +12,12 @@
   d'asset externe, le rendu est self-contained.
 
   Dimensions browserless à passer côté n8n :
-    square  → 1080 × 1080
-    story   → 1080 × 1920
+    square   → 1080 × 1080
+    portrait → 1080 × 1350 (4:5, feed Instagram)
+    story    → 1080 × 1920
+
+  Paramètre optionnel `fontscale` (ex: 0.8, 1, 1.2) : multiplie la taille
+  de l'accroche (et du sous-titre) pour tous les formats.
     banner  → 1200 × 630
 -->
 <!DOCTYPE html>
@@ -82,22 +86,29 @@
     /* ===== Format carré 1080×1080 ===== */
     body.format-square .card { width: 1080px; height: 1080px; }
     body.format-square .overlay { left: 22%; width: 56%; padding: 60px 40px; }
-    body.format-square .accroche { font-size: 130px; margin-bottom: 70px; }
-    body.format-square .subtitle { font-size: 28px; margin-bottom: 40px; }
+    body.format-square .accroche { font-size: calc(130px * var(--fs, 1)); margin-bottom: 70px; }
+    body.format-square .subtitle { font-size: calc(28px * var(--fs, 1)); margin-bottom: 40px; }
     body.format-square .logo { width: 180px; }
+
+    /* ===== Format portrait 1080×1350 (4:5, feed Instagram) ===== */
+    body.format-portrait .card { width: 1080px; height: 1350px; }
+    body.format-portrait .overlay { left: 20%; width: 60%; padding: 80px 40px; }
+    body.format-portrait .accroche { font-size: calc(140px * var(--fs, 1)); margin-bottom: 80px; }
+    body.format-portrait .subtitle { font-size: calc(30px * var(--fs, 1)); margin-bottom: 45px; }
+    body.format-portrait .logo { width: 190px; }
 
     /* ===== Format story 1080×1920 ===== */
     body.format-story .card { width: 1080px; height: 1920px; }
     body.format-story .overlay { left: 12%; width: 76%; padding: 100px 60px; }
-    body.format-story .accroche { font-size: 160px; margin-bottom: 90px; }
-    body.format-story .subtitle { font-size: 32px; margin-bottom: 50px; }
+    body.format-story .accroche { font-size: calc(160px * var(--fs, 1)); margin-bottom: 90px; }
+    body.format-story .subtitle { font-size: calc(32px * var(--fs, 1)); margin-bottom: 50px; }
     body.format-story .logo { width: 220px; }
 
     /* ===== Format banner 1200×630 ===== */
     body.format-banner .card { width: 1200px; height: 630px; }
     body.format-banner .overlay { left: 18%; width: 64%; padding: 35px 30px; }
-    body.format-banner .accroche { font-size: 88px; margin-bottom: 25px; line-height: 1; }
-    body.format-banner .subtitle { font-size: 22px; margin-bottom: 22px; }
+    body.format-banner .accroche { font-size: calc(88px * var(--fs, 1)); margin-bottom: 25px; line-height: 1; }
+    body.format-banner .subtitle { font-size: calc(22px * var(--fs, 1)); margin-bottom: 22px; }
     body.format-banner .logo { width: 120px; }
   </style>
 </head>
@@ -119,6 +130,11 @@
       const params = new URLSearchParams(location.search);
       const format = params.get('format') || 'square';
       document.getElementById('body').className = 'format-' + format;
+
+      const fontscale = parseFloat(params.get('fontscale') || '1');
+      if (fontscale > 0 && fontscale !== 1) {
+        document.getElementById('body').style.setProperty('--fs', String(fontscale));
+      }
 
       const photo = params.get('photo');
       if (photo) document.getElementById('bg').src = photo;
