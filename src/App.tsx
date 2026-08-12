@@ -7,6 +7,7 @@ import { Agents } from '@/pages/Agents';
 import { AgentChat } from '@/pages/AgentChat';
 import { Machines } from '@/pages/Machines';
 import { MachineDetail } from '@/pages/MachineDetail';
+import { Publications } from '@/pages/Publications';
 import { Coliver } from '@/pages/Coliver';
 import { LiensSEO } from '@/pages/LiensSEO';
 import { Analytics } from '@/pages/Analytics';
@@ -34,6 +35,7 @@ export default function App() {
                   <Route path="/agents/:code" element={<AgentChat />} />
                   <Route path="/machines" element={<Machines />} />
                   <Route path="/machines/:code" element={<MachineDetail />} />
+                  <Route path="/publications" element={<Publications />} />
                   <Route path="/coliver" element={<Coliver />} />
                   <Route path="/seo" element={<LiensSEO />} />
                   <Route path="/analytics" element={<Analytics />} />

@@ -707,3 +707,147 @@ export async function rpcUpdateMachineSettings(
   });
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// Pilotage des publications (étape 4 v09)
+// ---------------------------------------------------------------------------
+
+export interface PublishTargetOverview {
+  id: string;
+  machineCode: string;
+  platform: 'facebook' | 'instagram';
+  brand: 'coworking' | 'coliving';
+  displayName: string;
+  handle: string | null;
+  isActive: boolean;
+  postsPerWeek: number;
+  publishHour: number;
+  minIntervalHours: number;
+  reservoirCount: number;
+  publishedLast7d: number;
+  lastPublishedAt: Date | null;
+  failedCount: number;
+}
+
+export interface PublishedDraftLite {
+  id: string;
+  network: DraftNetwork;
+  targetId: string | null;
+  content: string;
+  publishedAt: Date | null;
+  publishedPostId: string | null;
+  publishError: string | null;
+  status: DraftStatus | 'failed';
+}
+
+type PublishTargetRow = {
+  id: string;
+  machine_code: string;
+  platform: 'facebook' | 'instagram';
+  brand: 'coworking' | 'coliving';
+  display_name: string;
+  handle: string | null;
+  is_active: boolean;
+  dashboard_publish_schedule: {
+    posts_per_week: number;
+    publish_hour: number;
+    min_interval_hours: number;
+  } | null;
+};
+
+export async function fetchPublishOverview(): Promise<{
+  targets: PublishTargetOverview[];
+  recentPublished: PublishedDraftLite[];
+  failed: PublishedDraftLite[];
+}> {
+  const [targetsRes, draftsRes] = await Promise.all([
+    supabase
+      .from('dashboard_publish_targets')
+      .select(
+        'id, machine_code, platform, brand, display_name, handle, is_active, dashboard_publish_schedule(posts_per_week, publish_hour, min_interval_hours)',
+      )
+      .order('brand')
+      .order('platform'),
+    supabase
+      .from('dashboard_posts_drafts')
+      .select('id, network, target_id, content, status, published_at, published_post_id, publish_error')
+      .in('status', ['approved', 'published', 'failed'])
+      .order('created_at', { ascending: false })
+      .limit(300),
+  ]);
+  if (targetsRes.error) throw targetsRes.error;
+  if (draftsRes.error) throw draftsRes.error;
+
+  const drafts = (draftsRes.data ?? []) as Array<{
+    id: string;
+    network: DraftNetwork;
+    target_id: string | null;
+    content: string;
+    status: string;
+    published_at: string | null;
+    published_post_id: string | null;
+    publish_error: string | null;
+  }>;
+
+  const sevenDaysAgo = Date.now() - 7 * 24 * 3600e3;
+  const targets = ((targetsRes.data ?? []) as unknown as PublishTargetRow[]).map((t) => {
+    const mine = drafts.filter((d) => d.target_id === t.id);
+    const published = mine.filter((d) => d.status === 'published' && d.published_at);
+    const lastPub = published
+      .map((d) => new Date(d.published_at as string))
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+    return {
+      id: t.id,
+      machineCode: t.machine_code,
+      platform: t.platform,
+      brand: t.brand,
+      displayName: t.display_name,
+      handle: t.handle,
+      isActive: t.is_active,
+      postsPerWeek: t.dashboard_publish_schedule?.posts_per_week ?? 3,
+      publishHour: t.dashboard_publish_schedule?.publish_hour ?? 9,
+      minIntervalHours: t.dashboard_publish_schedule?.min_interval_hours ?? 24,
+      reservoirCount: mine.filter((d) => d.status === 'approved').length,
+      publishedLast7d: published.filter(
+        (d) => new Date(d.published_at as string).getTime() >= sevenDaysAgo,
+      ).length,
+      lastPublishedAt: lastPub ?? null,
+      failedCount: mine.filter((d) => d.status === 'failed').length,
+    };
+  });
+
+  const toLite = (d: (typeof drafts)[number]): PublishedDraftLite => ({
+    id: d.id,
+    network: d.network,
+    targetId: d.target_id,
+    content: d.content,
+    publishedAt: d.published_at ? new Date(d.published_at) : null,
+    publishedPostId: d.published_post_id,
+    publishError: d.publish_error,
+    status: d.status as PublishedDraftLite['status'],
+  });
+
+  return {
+    targets,
+    recentPublished: drafts
+      .filter((d) => d.status === 'published')
+      .slice(0, 15)
+      .map(toLite),
+    failed: drafts.filter((d) => d.status === 'failed').map(toLite),
+  };
+}
+
+export async function rpcUpdatePublishSchedule(
+  targetId: string,
+  postsPerWeek: number,
+  publishHour: number,
+  minIntervalHours: number,
+): Promise<void> {
+  const { error } = await supabase.rpc('dashboard_update_publish_schedule', {
+    p_target_id: targetId,
+    p_posts_per_week: postsPerWeek,
+    p_publish_hour: publishHour,
+    p_min_interval_hours: minIntervalHours,
+  });
+  if (error) throw error;
+}
