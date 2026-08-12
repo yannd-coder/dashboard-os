@@ -236,7 +236,9 @@ export function MachineDetail() {
         </div>
       )}
 
-      {machineCode === 'M01' && <MachineSettingsPanel machineCode={machineCode} />}
+      {(machineCode === 'M01' || machineCode === 'M06') && (
+        <MachineSettingsPanel machineCode={machineCode} />
+      )}
 
       {/* Drafts avec filtre par statut */}
       <section>
