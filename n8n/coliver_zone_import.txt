@@ -1,0 +1,43 @@
+;; Zone coliver.re — export du compte Cloudflare du dév (2026-06-12), nettoyé pour import
+;; Retiré : SOA, NS apex (arushi/greg + ns60/61.wpx.net vestiges WPX)
+;; Conservé : délégation notify → lovable.cloud, tous les A/MX/TXT/CNAME réels
+
+;; A Records
+autoconfig.coliver.re.    1    IN    A    5.254.55.38 ; cf_tags=cf-proxied:true
+autodiscover.coliver.re.    1    IN    A    5.254.55.38 ; cf_tags=cf-proxied:true
+coliver.re.    1    IN    A    109.234.166.110 ; cf_tags=cf-proxied:true
+facture.coliver.re.    3600    IN    A    185.158.133.1 ; cf_tags=cf-proxied:false
+ftp.coliver.re.    1    IN    A    5.254.55.38 ; cf_tags=cf-proxied:true
+localhost.coliver.re.    1    IN    A    127.0.0.1 ; cf_tags=cf-proxied:false
+mail.coliver.re.    1    IN    A    5.254.55.38 ; cf_tags=cf-proxied:true
+m.coliver.re.    1    IN    A    5.254.55.38 ; cf_tags=cf-proxied:true
+static.coliver.re.    1    IN    A    5.254.55.38 ; cf_tags=cf-proxied:true
+time.coliver.re.    3600    IN    A    185.158.133.1 ; cf_tags=cf-proxied:false
+www.coliver.re.    1    IN    A    109.234.166.110 ; cf_tags=cf-proxied:true
+
+;; CNAME Records
+dkim._domainkey.coliver.re.    1    IN    CNAME    dkim.wpx.net. ; cf_tags=cf-proxied:false
+
+;; MX Records
+coliver.re.    1    IN    MX    29 route3.mx.cloudflare.net.
+coliver.re.    1    IN    MX    90 route2.mx.cloudflare.net.
+coliver.re.    1    IN    MX    41 route1.mx.cloudflare.net.
+send.coliver.re.    1    IN    MX    10 feedback-smtp.eu-west-1.amazonses.com.
+
+;; NS Records (délégation Lovable uniquement)
+notify.coliver.re.    1    IN    NS    ns4.lovable.cloud.
+notify.coliver.re.    3600    IN    NS    ns3.lovable.cloud.
+
+;; TXT Records
+cf2024-1._domainkey.coliver.re.    1    IN    TXT    "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiweykoi+o48IOGuP7GR3X0MOExCUDY/BCRHoWBnh3rChl7WhdyCxW3jgq1daEjPPqoi7sJvdg5hEQVsgVRQP4DcnQDVjGMbASQtrY4WmB1VebF+RPJB2ECPsEDTpeiI5ZyUAwJaVX7r6bznU67g7LvFq35yIo4sdlmtZGV+i0H4cpYH9+3JJ78k" "m4KXwaf9xUJCWF6nxeD+qG6Fyruw1Qlbds2r85U9dkNDVAS3gioCvELryh1TxKGiVTkg4wqHTyHfWsp7KD3WQHYJn0RyfJJu6YEmL77zonn7p2SRMvTMP3ZEXibnC9gz3nnhR6wcYL8Q7zXypKTMD58bTixDSJwIDAQAB"
+coliver.re.    1    IN    TXT    "v=spf1 include:_spf.mx.cloudflare.net ~all"
+coliver.re.    1    IN    TXT    "google-site-verification=eSbFF8tL4hN9wxaat6tsT9ZNyHIHvSXfTY-GA459v7A"
+_dmarc.coliver.re.    3600    IN    TXT    "v=DMARC1; p=none; pct=100; rua=mailto:dmarcreports@lovable.dev"
+_lovable.coliver.re.    3600    IN    TXT    "lovable_verify=bfb67fabb93d0b993e33abd13003a561b85b35563485fa5b1e6b529188b13806"
+_lovable.coliver.re.    3600    IN    TXT    "lovable_verify=24c3776fe4d1e9df375e9ccf291bfbb52d185322548e3c0285b57df96bc43096"
+_lovable-email.coliver.re.    3600    IN    TXT    "lovable_email_verify=7ef286aefb72b947639f45480a78ec5f0b36b8ddb76add70a0dd0250e35d5cab"
+_lovable.facture.coliver.re.    3600    IN    TXT    "lovable_verify=0fcc538c6674f79dd52f0ed02aeffa245d5c008ea2d22ab27834e65f113fe646"
+_lovable.time.coliver.re.    3600    IN    TXT    "lovable_verify=a2d5a3c033747073caf4ca10f8f9ff1d4ff5c8988b8ab770d014df009d88c8bd"
+_lovable.www.coliver.re.    3600    IN    TXT    "lovable_verify=f56901e6a24b660098b6627e1f5f28926bd8e3dc7be5c5f0fd2259016ebc1aa1"
+resend._domainkey.coliver.re.    1    IN    TXT    "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC/4s3W9ti+7Qye2FiWEQ0yd5v6LmA791Es//UOOLkJyWNNXXFJneyAah34y4FFfE2Ir1fhaTAR8mVJI6XZTT+kfA98p9qAg9yk589alfkO8ut2TqdQWaDFttWpkQweK3sUQ95TDDtH/DBcSASA2zrS+Q25ExPE2C28xQ35OVZwiwIDAQAB"
+send.coliver.re.    1    IN    TXT    "v=spf1 include:amazonses.com ~all"
